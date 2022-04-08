@@ -1,0 +1,1556 @@
+setwd("C:/Users/khokon/Desktop/PhD/GitHub_Anis_Khokon")
+rm(list=ls())
+library(ggplot2)
+library(gridExtra)
+library(car)
+library(lme4)
+library(lmerTest)
+library(vegan)
+library(MASS)
+library(lm.beta)
+library(glmnet)
+library(indicspecies)
+library(olsrr)
+library(lars)
+library(nlme)
+library(pgirmess)
+library(MuMIn)
+library(rsq)
+
+### Table 2 ####
+##model selection 
+
+##load the data 
+dat<-read.table(file="15N_dataset_review.txt",head=T,sep="\t")
+
+#Treatment groups: 15NH4, 15NO3 
+Ammonium <-dat[dat$Treatment=="15NH4",]
+Nitrate <-dat[dat$Treatment=="15NO3",]
+
+# response: 15_N enrichment
+dat$Whole.root_N.uptake_log # whole root
+dat$Transport_15N.enrichment_log # transport segment
+
+# explaining variables & factors
+dat$Shannon_H #Shannon diversity
+dat$Richness # mycorrhized root tips
+dat$Fine_DW #fine roots dry mass 
+dat$Season #season
+dat$Vitality.index #root vitality index in %
+dat$VI #root vitality index (not in %)
+
+##random factors 
+dat$Region #forests
+dat$Plot #plots 
+
+Ammonium$Season <- as.factor(Ammonium$Season)
+Nitrate$Season <- as.factor(Nitrate$Season)
+
+Ammonium$Plot <- as.factor(Ammonium$Plot)
+Nitrate$Plot <- as.factor(Nitrate$Plot)
+
+Ammonium$Region <- as.factor(Ammonium$Region)
+Nitrate$Region <- as.factor(Nitrate$Region)
+
+##models for NH4 and NO3 in the transport root segments
+## NH4 model in transport
+##check multicollinearity 
+
+M1_Ammonium_transport <-lmer(data=Ammonium,Transport_15N.enrichment_log~Shannon_H+Richness+Season+Fine_DW+VI+ (1|Region) + (1|Plot)) ##all predictors
+vif(M1_Ammonium_transport)
+
+M2_Ammonium_transport <-lmer(data=Ammonium,Transport_15N.enrichment_log~Shannon_H+Season+Fine_DW+VI+ (1|Region) + (1|Plot)) ##EM richnees removed due to highest VIf (4.40)
+vif(M2_Ammonium_transport) ## now all predictors with vif < 2.5 
+
+##stepwise elimination with backward selection 
+step_res<- step(M2_Ammonium_transport, direction = "backward", trace = TRUE)
+step_res
+
+##best model found after step function 
+Best_model_Ammonium_transport <- lmer(data=Ammonium,Transport_15N.enrichment_log~Shannon_H+ (1|Region) + (1|Plot))
+
+##Model for NO3 enrichment in the transport root segments
+M1_Nitrate_transport <-lmer(data=Nitrate,Transport_15N.enrichment_log ~ Shannon_H+Richness+Season+Fine_DW+VI+(1|Region) + (1|Plot)) ##all predictors
+vif(M1_Nitrate_transport)
+
+M2_Nitrate_transport <-lmer (data=Nitrate,Transport_15N.enrichment_log~Shannon_H+Season+Fine_DW+VI+ (1|Region) + (1|Plot)) ####EM richness removed (vif = 9.24)  
+vif(M2_Nitrate_transport) ## still root vitality index has VIF >2.50
+
+M3_Nitrate_transport <-lmer(data=Nitrate,Transport_15N.enrichment_log~Shannon_H+Season+Fine_DW+ (1|Region) + (1|Plot)) ####root VI removed (vif > 2.50)  
+vif(M3_Nitrate_transport) ## now all <2.50
+step(M3_Nitrate_transport, direction = "backward", trace = TRUE)
+
+Best_model_Nitrate_transport <- lmer(data = Nitrate, Transport_15N.enrichment_log ~ Shannon_H + Season+ (1|Region) + (1|Plot))
+
+##models for NH4 in the whole root segments 
+M1_Ammonium_whole_root <-lmer(data=Ammonium,Whole.root_N.uptake_log~Shannon_H+Richness+Season+Fine_DW+VI+(1|Region) + (1|Plot))##all predictors
+vif(M1_Ammonium_whole_root)
+
+M2_Ammonium_whole_root <-lmer(data=Ammonium,Whole.root_N.uptake_log~Shannon_H+Season+Fine_DW+VI+(1|Region) + (1|Plot)) ##EM richness removed (vif = 4.41)  
+vif(M2_Ammonium_whole_root)## now all <2.50
+step(M2_Ammonium_whole_root, direction = "backward", trace = TRUE)
+
+Best_model_Ammonium_whole_root <-lmer(Whole.root_N.uptake_log ~ Shannon_H + Season + VI+(1|Region) + (1|Plot),data = Ammonium)
+
+##Model for 15O3 enrichment in the whole root segments 
+M1_Nitrate_whole_root <-lmer(data=Nitrate,Whole.root_N.uptake_log~Shannon_H+Richness+Season+Fine_DW+VI+(1|Region) + (1|Plot)) ##all predictors
+vif(M1_Nitrate_whole_root)
+
+M2_Nitrate_whole_root <-lmer(data=Nitrate,Whole.root_N.uptake_log~Shannon_H+Season+Fine_DW+VI+(1|Region) + (1|Plot)) ##EM richness removed (vif = 9.25)
+vif(M2_Nitrate_whole_root) ## now all <2.50
+step(M2_Nitrate_whole_root, direction = "backward", trace = TRUE)
+
+Best_model_Nitrate_whole_root <- lmer(data=Nitrate,Whole.root_N.uptake_log~Shannon_H + Season + VI+(1|Region) + (1|Plot))
+
+###statistics model selection 
+##calculate AIC values #
+AIC(Best_model_Ammonium_transport)
+AIC(Best_model_Nitrate_transport)
+AIC(Best_model_Ammonium_whole_root)
+AIC(Best_model_Nitrate_whole_root)
+
+###calculate residual sum sq.## 
+sum(resid(Best_model_Ammonium_transport)^2)
+sum(resid(Best_model_Nitrate_transport)^2)
+sum(resid(Best_model_Ammonium_whole_root)^2)
+sum(resid(Best_model_Nitrate_whole_root)^2)
+
+##calculate marginal and conditional r2 ## 
+MuMIn::r.squaredGLMM(lme4::lmer(data=Ammonium,Transport_15N.enrichment_log~Shannon_H+ (1|Region) + (1|Plot)))
+MuMIn::r.squaredGLMM(lme4::lmer(data = Nitrate, Transport_15N.enrichment_log ~ Shannon_H + Season+ (1|Region) + (1|Plot)))
+MuMIn::r.squaredGLMM(lme4::lmer(data=Ammonium, Whole.root_N.uptake_log ~ Shannon_H + Season + VI+(1|Region) + (1|Plot)))
+MuMIn::r.squaredGLMM(lme4::lmer(data=Nitrate,Whole.root_N.uptake_log~Shannon_H + Season + VI+(1|Region) + (1|Plot)))
+
+##calculate F and P values #
+anova(Best_model_Ammonium_transport)
+anova(Best_model_Nitrate_transport)
+anova(Best_model_Ammonium_whole_root)
+anova(Best_model_Nitrate_whole_root)
+
+##model summary ### 
+summary(Best_model_Ammonium_transport)
+summary(Best_model_Nitrate_transport)
+summary(Best_model_Ammonium_whole_root)
+summary(Best_model_Nitrate_whole_root)
+
+## Figure 1 : 15N in different root segments ####
+rm(list=ls())
+dat_box<-read.table(file="15N in different root segments.txt",head=T,sep="\t")
+
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(emmeans)
+library(nlme)
+library(ggpubr)
+library(dplyr)
+###
+AM <-dat_box[dat_box$Treatment=="15N-NH4+",]
+NI <-dat_box[dat_box$Treatment=="15N-NO3-",]
+
+##plot 
+AM_plot <-ggplot(data = AM, aes(x=AM$Groups, y=AM$Enrichment)) + 
+  geom_boxplot(aes(fill=Groups))+
+  scale_y_continuous(breaks = seq(0,1200,200))+
+  scale_fill_brewer(palette="Set1")+
+  facet_grid(.~Treatment)+
+  labs(x=expression(paste("")),
+       y=expression(paste("",""^15, "N enrichment (µg ",g^{-1},"DW)")))+
+  theme_bw()+
+  theme(strip.text = element_text(size=12, face="bold", color="black"))+
+  theme(strip.background = element_rect(fill="white"))+
+  theme(axis.text.y=element_text(size=10,color = "black")) + 
+  theme(axis.text.x=element_text(size=10,color = "black")) +
+  theme(axis.title.y=element_text(size=10)) + 
+  theme(legend.title = element_text(size=10, color = "black"),
+        legend.text = element_text(size=10, color = "black"))
+
+NI_plot <-ggplot(data = NI, aes(x=NI$Groups, y=NI$Enrichment)) + 
+  geom_boxplot(aes(fill=Groups))+
+  scale_y_continuous(breaks = seq(0,300,50))+
+  scale_fill_brewer(palette="Set1")+
+  facet_grid(.~Treatment)+
+  labs(x=expression(paste("")),
+       y=expression(paste("",""^15, "N enrichment (µg ",g^{-1},"DW)")))+
+  theme_bw()+
+  theme(strip.text = element_text(size=12, face="bold", color="black"))+
+  theme(strip.background = element_rect(fill="white"))+
+  theme(axis.text.y=element_text(size=10,color = "black")) + 
+  theme(axis.text.x=element_text(size=10,color = "black")) +
+  theme(axis.title.y=element_text(size=10)) + 
+  theme(legend.title = element_text(size=10, color = "black"),
+        legend.text = element_text(size=10, color = "black"))
+
+all.plot <- ggarrange(AM_plot, NI_plot, 
+                      labels = c("a)", "b)"),
+                      ncol = 2, nrow = 1, legend="none", font.label = list(size = 15))
+all.plot
+
+tiff(filename="v3_Repeated for paper_15N in different root segments v3.tiff",width=2200,height=1000,res=300)
+all.plot
+dev.off()
+
+########## Figure 1: Tukey test for the different segments in HEW and SEW ####
+library(lme4)
+library(lmerTest)
+library(multcomp)
+library(multcompView)
+library(agricolae)
+
+rm(list=ls())
+df<-read.table(file="Tukey for root segments.txt",head=T,sep="\t")
+head(df)
+str(df)
+
+AM_test <-df[df$Treatment=="15NH4",]
+NI_test <-df[df$Treatment=="15NO3",]
+
+###Ammonium 
+int1<-interaction(AM_test$segments)
+int1
+
+lm1 <-lmer(data=AM_test,log(X15N.enrichments)~int1+(1|Sample.ID))
+anova(lm1)
+glhtlm1 <-glht(lm1,linfct=mcp(int1="Tukey"))
+summary(glhtlm1)
+cld(glhtlm1)
+
+### NITRATE 
+int2<-interaction(NI_test$segments)
+int2
+
+lm2 <-lmer(data=NI_test,log(X15N.enrichments)~int2+(1|Sample.ID))
+anova(lm2)
+glhtlm2 <-glht(lm2,linfct=mcp(int2="Tukey"))
+summary(glhtlm2)
+cld(glhtlm2)
+
+###compare NH4 and NO3 in different segments ####
+EMRT <-df[df$segments=="EMRT ",]
+Fine <-df[df$segments=="Fine",]
+Coarse <-df[df$segments=="Coarse ",]
+Transport <-df[df$segments=="Transport ",]
+
+##EMRT 
+lmer_EMRT1 <-lmer(data=EMRT,log(X15N.enrichments)~EMRT$Treatment+(1|Plot)+(1|Harvest.season))
+anova(lmer_EMRT1)
+
+##Fine 
+lmer_Fine1 <-lmer(data=Fine,log(X15N.enrichments)~Fine$Treatment+(1|Plot)+(1|Harvest.season))
+anova(lmer_Fine1)
+
+##Coarse 
+lmer_Coarse1 <-lmer(data=Coarse,log(X15N.enrichments)~Coarse$Treatment+(1|Plot)+(1|Harvest.season))
+anova(lmer_Coarse1)
+
+##Transport 
+lmer_Transport1 <-lmer(data=Transport,log(X15N.enrichments)~Transport$Treatment+(1|Plot)+(1|Harvest.season))
+anova(lmer_Transport1)
+
+####Figure 2 : 15N enrichment in EM species ##### 
+#######Library load 
+library(ggplot2)
+library(vegan)
+library(permute)
+library(dplyr)
+library(Rmisc)
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(reshape)
+library(reshape2)
+library(plyr)
+library(tidyverse)
+
+###Data read 
+rm(list=ls())
+All<-read.table(file="15N_enrichment_EMF.txt",head=T,sep="\t")
+All_summary <- summarySE(All, measurevar="Enrichment_EMF", groupvars=c("Species","Treatment","Season"))
+
+#write.csv(All_summary,file = "mean_15N_enrichment_ECMF.csv")
+
+###Lock the factors, meaning i want the order as it is in the data file 
+All$Treatment <- factor(All$Treatment, levels= unique(All$Treatment), ordered=TRUE)
+All$Season <- factor(All$Season, levels= unique(All$Season), ordered=TRUE)
+All$Species <- factor(All$Species, levels= unique(All$Species), ordered=TRUE)
+
+means <- ddply(All, c("Treatment", "Species","Season"), summarise,
+               mean=mean(Enrichment_EMF,na.rm=TRUE))
+
+plot <- ggplot(data=means, aes(x=Species, y=mean, fill=Treatment)) + 
+  geom_bar(stat="identity") +  
+  facet_wrap(~ Season)+
+  labs(x=expression(paste()),
+       y=expression(paste("",""^15, "N Enrichment (µg ",g^{-1},"DW)")))+ 
+  scale_fill_manual(breaks = c("15NH4", "15NO3"),values = c("steelblue"," black"),labels=c(expression(paste("",""^15,,"NH"[4]^ +{})), expression(paste("",""^15,,"NO"[3]^ -{}))))+
+  coord_flip()
+plot
+
+# Calc SEM  
+means.sem <- ddply(All, c("Treatment", "Species","Season"), summarise,
+                   mean=mean(Enrichment_EMF), sem=sd(Enrichment_EMF)/sqrt(length(Enrichment_EMF)))
+SEM <- transform(means.sem, lower=mean-sem, upper=mean+sem)
+#write.csv(SEM, file = "SEM.csv")
+
+SEM[SEM$Treatment=='15NH4',6:7] <- SEM[SEM$Treatment=='15NH4',4] + SEM[SEM$Treatment=='15NO3',6:7]
+
+# Add SEM & change appearance of barplot
+plotSEM <- plot +geom_errorbar(data=SEM, aes(ymax=upper,  ymin=lower), 
+                               width=0.2)+ theme_bw()
+plotSEM 
+p1<-plotSEM+
+  theme(axis.text.y=element_text(size=13,color = "black")) + 
+  theme(axis.text.x=element_text(size=14,color = "black")) +
+  theme(axis.title.x = element_text(size=14, face="bold"))+
+  theme(axis.title.y=element_text(size=16, face="bold")) + 
+  theme(legend.title = element_text(size=16, color = "black", face="bold"),
+        legend.text = element_text(size=16, color = "black"),
+        legend.justification=c(1,1), 
+        legend.position=c(0.999, 0.115)) +
+  theme(strip.text = element_text(size=18, face="bold", color="black"))+
+  theme(strip.background = element_rect(fill="white"))+
+  theme(panel.background = element_blank(),panel.grid.minor = element_blank())
+p1
+
+tiff(filename="repeat_stack 15N enrichment in ECMF Species with SEM.tiff",width=4000,height=3500,res=300)
+p1 
+dev.off()
+
+##stats figure 2:  15N in EMF ####
+rm(list=ls())
+df<-read.table(file="15N in EM Fungi speceis.txt",head=T,sep="\t")
+head(df)
+str(df)
+
+#load library
+library(lme4)
+library(lmerTest)
+library(multcomp)
+library(multcompView)
+library(agricolae)
+
+####EM fungi in Spring
+Sp<-df[1:197,] 
+Sp_amm<-df[1:99,] 
+Sp_nit<-df[100:197,]
+
+##NH4 
+lme1<-lmer(data=Sp_amm,log(Sp_amm$X15N.enrichment_MT)~EMF.species+(1|Plot)+(1|Sites))
+anova(lme1)
+
+#NO3 
+lme2<-lmer(data=Sp_nit,log(X15N.enrichment_MT)~EMF.species+(1|Plot)+(1|Sites))
+anova(lme2)
+
+####interaction between treatment 
+lmer1<-lmer(data=Sp,log(Sp$X15N.enrichment_MT)~Sp$Treatment+(1|Plot)+(1|Sites))
+anova(lmer1)
+
+#############EM fungi in Summer
+Su<-df[198:309,] 
+Su_amm<-df[198:254,] 
+Su_nit<-df[255:309,]
+
+##NH4 
+lme3<-lmer(data=Su_amm,log(X15N.enrichment_MT)~EMF.species+(1|Plot)+(1|Sites))
+anova(lme3)
+
+#NO3 
+lme4<-lmer(data=Su_nit,log(X15N.enrichment_MT)~EMF.species+(1|Plot)+(1|Sites))
+anova(lme4)
+
+###interaction 
+lmer11<-lmer(data=Su,log(X15N.enrichment_MT)~Treatment+(1|Plot)+(1|Sites))
+anova(lmer11)
+
+#############EM fungi in autumn
+Au_amm<-df[310:413,] 
+Au_nit<-df[414:488,]
+Au<-df[310:488,] 
+
+##NH4 
+lme5<-lmer(data=Au_amm,log(X15N.enrichment_MT)~EMF.species+(1|Plot)+(1|Sites))
+anova(lme5)
+
+#NO3 
+lme6<-lmer(data=Au_nit,log(X15N.enrichment_MT)~EMF.species+(1|Plot)+(1|Sites))
+anova(lme6)
+
+####interaction between treatment 
+lme2<-lmer(data=Au,log(X15N.enrichment_MT)~Treatment+(1|Plot)+(1|Sites))
+anova(lme2)
+
+### figure 3: EM diversity and N uptake ####
+rm(list=ls())
+dat<-read.table(file="Data to cal effect H and identity.txt",head=T,sep="\t")
+head(dat)
+str(dat)
+
+dat_ammonium <-dat[dat$Treatment=="15-NH4+",]
+dat_nitrate <-dat[dat$Treatment=="15-NO3-",]
+
+dat_H <-dat[dat$Sites=="HEW",]
+dat_H_sp <-dat_H[dat_H$Harvest.season=="Spring ",]
+dat_H_su <-dat_H[dat_H$Harvest.season=="Summer",]
+dat_H_au <-dat_H[dat_H$Harvest.season=="Autumn",]
+
+dat_S <-dat[dat$Sites=="SEW",]
+dat_S_sp <-dat_S[dat_S$Harvest.season=="Spring ",]
+dat_S_su <-dat_S[dat_S$Harvest.season=="Summer",]
+dat_S_au <-dat_S[dat_S$Harvest.season=="Autumn",]
+
+##### Figure 3: 15N transport vs. shanoon ####
+# standard plots
+plot(dat$Shannon_H,dat$Transport.log_15N.enrichment)
+
+#load library 
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(emmeans)
+library(nlme)
+library(ggpubr)
+library(dplyr)
+
+# create ggplot and save it in object "p1"
+p4<-ggplot(dat, aes(x=dat$Shannon_H, y=dat$Transport.log_15N.enrichment,color=Treatment))+ 
+  geom_point(size=2)+geom_smooth(method="lm", size =1)+
+  labs(x=expression(paste("EM diversity (H')")),
+       y=expression(paste("",""^15,"N enrichment (µg ",g^{-1},"DW)")))+
+  theme_bw()+
+  theme(axis.text.y=element_text(size=10,color = "black")) + 
+  theme(axis.text.x=element_text(size=10,color = "black")) +
+  theme(axis.title.x = element_text(size=10, face="bold"))+
+  theme(axis.title.y=element_text(size=10, face="bold")) + 
+  theme(legend.title = element_text(colour="black", size=10, face="bold"))+
+  theme(legend.text = element_text(colour = "black",size = 10),
+        legend.justification=c(1,1), 
+        legend.position=c(0.998, 0.250))+
+  theme(panel.background = element_blank())+
+  scale_color_manual(breaks = c("15-NH4+", "15-NO3-"),values = c("steelblue"," black"),labels=c(expression(paste("",""^15,"NH"[4]^ +{})), expression(paste("",""^15,"NO"[3]^ -{}))))
+
+p6<-ggplot(dat, aes(x=dat$Shannon_H, y=dat$Total.log.enrichment_15N,color=Treatment))+ 
+  geom_point(size=2)+geom_smooth(method="lm", size =1)+
+  labs(x=expression(paste("EM diversity (H')")),
+       y=expression(paste("",""^15,"N enrichment (µg ",g^{-1},"DW)")))+
+  theme_bw()+
+  theme(axis.text.y=element_text(size=10,color = "black")) + 
+  theme(axis.text.x=element_text(size=10,color = "black")) +
+  theme(axis.title.x = element_text(size=10, face="bold"))+
+  theme(axis.title.y=element_text(size=10, face="bold")) + 
+  theme(legend.title = element_text(colour="black", size=10, face="bold"))+
+  theme(legend.text = element_text(colour = "black",size = 10),
+        legend.justification=c(1,1), 
+        legend.position=c(0.998, 0.250))+
+  theme(panel.background = element_blank())+
+  scale_color_manual(breaks = c("15-NH4+", "15-NO3-"),values = c("steelblue"," black"),labels=c(expression(paste("",""^15,"NH"[4]^ +{})), expression(paste("",""^15,"NO"[3]^ -{}))))
+
+all.plot <- ggarrange(p4, p6,
+                      labels = c("a)", "b)"),
+                      ncol = 2, nrow = 1, font.label = list(size = 15))
+all.plot
+
+
+# save the p1 plot in a file (run all three lines together)
+tiff(filename="cor_transport and entire root systems.tiff",width=2500,height=1200,res=300)
+all.plot
+dev.off()
+
+# Figure 3. correlation statistics #
+cor.test(dat$Shannon_H,dat$Transport.log_15N.enrichment) ##t = 4.6605, df = 120, p-value = 8.238e-06, r =0.3914859 
+
+### Figure 4: LASSO regression####
+rm(list=ls())
+
+# read in data
+dat<-read.table(file="repeat_LASSO.txt",head=T,sep="\t")
+A<-dat[dat$Treatment=="15NH4",]
+N<-dat[dat$Treatment=="15NO3",]
+NT<-N[,c(9,16:68)]
+AT<-A[,c(9,16:68)]
+NR<-N[,c(11,16:68)]
+AR<-A[,c(11,16:68)]
+
+#### load library
+library(glmnet)
+
+# set possible lambda values from 0.01 to 100
+lambdas <- 10^seq(2,-2,by=-.1)
+# Setting alpha = 1 implements lasso regression
+
+## nitrate - transport
+set.seed(123)
+lasso_reg_NT<-cv.glmnet(as.matrix(NT[,2:ncol(NT)]),NT$X15N.enrichment_Transport..µg.g.DW.,alpha=1,lambda=lambdas,standardize=TRUE,nfolds=10)
+# plot log(lambda) against model error
+plot(lasso_reg_NT, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+
+tiff(filename="transport_nitrate.tiff",width=3200,height=2800,res=300)
+plot(lasso_reg_NT, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+dev.off()
+
+# extract best lambda
+lambda_best_NT <- lasso_reg_NT$lambda.min
+lambda_best_NT
+# fit lasso model with best lambda
+lasso_model_NT <- glmnet(as.matrix(NT[,2:ncol(NT)]),NT$X15N.enrichment_Transport..µg.g.DW.,alpha=1,family="gaussian",lambda=lambda_best_NT,standardize=TRUE)
+print(lasso_model_NT)
+# show coefficients
+round(coef(lasso_model_NT, s = lambda_best_NT),3)
+
+## ammonium - transport
+set.seed(123)
+
+lasso_reg_AT<-cv.glmnet(as.matrix(AT[,2:ncol(AT)]),AT$X15N.enrichment_Transport..µg.g.DW.,alpha=1,lambda=lambdas,standardize=TRUE,nfolds=10)
+plot(lasso_reg_AT,cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+
+tiff(filename="transport_ammonium.tiff",width=3200,height=2800,res=300)
+plot(lasso_reg_AT, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+dev.off()
+
+lambda_best_AT <- lasso_reg_AT$lambda.min
+lambda_best_AT
+lasso_model_AT <- glmnet(as.matrix(AT[,2:ncol(AT)]),AT$X15N.enrichment_Transport..µg.g.DW.,alpha=1,family="gaussian",lambda=lambda_best_AT,standardize=TRUE)
+print(lasso_model_AT)
+coef(lasso_model_AT, s = lambda_best_AT)
+
+## nitrate - whole root
+set.seed(123)
+lasso_reg_NR<-cv.glmnet(as.matrix(NR[,2:ncol(NR)]),NR$X15N_enrichment_whole.root..µg.g.DW.,alpha=1,lambda=lambdas,standardize=TRUE,nfolds=10)
+plot(lasso_reg_NR,cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+
+tiff(filename="transport_ammonium.tiff",width=3200,height=2800,res=300)
+plot(lasso_reg_AT, cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+dev.off()
+
+lambda_best_NR <- lasso_reg_NR$lambda.min
+lambda_best_NR
+lasso_model_NR <- glmnet(as.matrix(NR[,2:ncol(NR)]),NR$X15N_enrichment_whole.root..µg.g.DW.,alpha=1,family="gaussian",lambda=lambda_best_NR,standardize=TRUE)
+print(lasso_model_NR)
+round(coef(lasso_model_NR, s = lambda_best_NR),3) 
+
+## ammonium - whole root
+set.seed(123)
+lasso_reg_AR<-cv.glmnet(as.matrix(AR[,2:ncol(AR)]),AR$X15N_enrichment_whole.root..µg.g.DW.,alpha=1,lambda=lambdas,standardize=TRUE,nfolds=10)
+plot(lasso_reg_AR,cex.lab=1.5, cex.axis=1.5, cex.main=1.5, cex.sub=1.5)
+
+lambda_best_AR <- lasso_reg_AR$lambda.min
+lambda_best_AR
+lasso_model_AR <- glmnet(as.matrix(AR[,2:ncol(AR)]),AR$X15N_enrichment_whole.root..µg.g.DW.,alpha=1,family="gaussian",lambda=lambda_best_AR,standardize=TRUE)
+print(lasso_model_AR)
+coef(lasso_model_AR, s = lambda_best_AR)
+
+
+tiff(filename="plot(lasso_reg_Transport).tiff",width=3000,height=1400,res=300)
+par(mfrow=c(1,2))
+plot(lasso_reg_AT)
+plot(lasso_reg_NT)
+dev.off()
+
+tiff(filename="plot(lasso_reg_Whole_root).tiff",width=3000,height=1400,res=300)
+par(mfrow=c(1,2))
+plot(lasso_reg_AR)
+plot(lasso_reg_NR)
+dev.off()
+
+tiff(filename="V3_plot(lasso).tiff",width=3200,height=2800,res=300)
+par(mfrow=c(2,2))
+plot(lasso_reg_AT)
+plot(lasso_reg_AR)
+plot(lasso_reg_NT)
+plot(lasso_reg_NR)
+dev.off()
+
+tiff(filename="V4_plot(lasso).tiff",width=3200,height=2800,res=300)
+par(mfrow=c(2,2))
+plot(lasso_reg_AT)
+plot(lasso_reg_AR)
+plot(lasso_reg_NT)
+plot(lasso_reg_NR)
+dev.off()
+
+####Supplement figures and tables ####
+##figure SP2: Relative abundance EM ####
+rm(list=ls())
+RA<-read.table(file="Relative abundance.txt",head=T,sep="\t")
+library(dplyr) 
+library(ggplot2)
+library(ggpubr)
+require(reshape2)
+library(egg)
+library(Rmisc)
+library(devtools)
+library(tidyverse)
+
+#####Lock the factors 
+RA$ECMF.Speceis <- factor(RA$ECMF.Speceis, levels= unique(RA$ECMF.Speceis), ordered=TRUE)
+RA$Sites <- factor(RA$Sites, levels= unique(RA$Sites), ordered=TRUE)
+RA$Season <- factor(RA$Season, levels= unique(RA$Season), ordered=TRUE)
+
+p3<-ggplot(RA, aes(fill=ECMF.Speceis,y=RA,x=Season)) +
+  scale_y_continuous(breaks = seq(0,100,20))+
+  geom_bar(position="stack", stat="identity") +
+  labs(x=expression(paste("")),
+       y=expression(paste("Relative Abundance [%]")),
+       fill = "Ectomycorrhizal fungal species")+
+  facet_wrap(~Sites)+
+  scale_fill_manual(
+    values=c("black", "lightgrey", "#74D944", "#CE50CA", "#C0717C", "#CBD588", "antiquewhite2", 
+             "#673770", "#D3D93E", "steelblue", "#508578", "#D7C1B1", "#689030", "#AD6F3B", 
+             "#CD9BCD", "#D14285", "#6DDE88", "#652926", "#7FDCC0", "#C84248", "#8569D5",
+             "#5E738F", "deeppink", "#8A7C64", "#599861","#FFDB6D", "lightcoral","#00AFBB",
+             "#00AFBB", "#E7B800", "#FC4E07","#F4EDCA", "#D16103", "#C3D7A4", "#52854C", 
+             "#4E84C4", "salmon","#999999", "darkolivegreen1", 
+             "#56B4E9", "#009E73", "#F0E442", "#0072B2","orange"))+
+  theme_bw()+
+  theme(strip.text = element_text(size=24, face="bold", color="black"))+
+  theme(strip.background = element_rect(fill="white"))+
+  theme(axis.text.y=element_text(size=24,color = "black")) + 
+  theme(axis.text.x=element_text(size=24,color = "black")) +
+  theme(axis.title.y=element_text(size=24, face="bold", vjust=1)) + 
+  theme(legend.title = element_text(colour="black", size=20, face="bold"))+
+  theme(legend.text = element_text(colour = "black",size = 18))+
+  theme(panel.background = element_blank(),panel.grid.minor = element_blank())
+p3
+
+tiff(filename="RA of the ECMF species v3.tiff",width=5500,height=3500,res=300)
+p3
+dev.off()
+
+### Figure SP 3: plot correlation between measured and calculated 15N in EMRTS #####
+rm(list=ls())
+dat<-read.table(file="corr_measured_calculated_15N.txt",head=T,sep="\t")
+
+dat_measured <-dat[dat$Groups=="Measured",]
+dat_calculated <-dat[dat$Groups=="Calculated",]
+
+cor.test(dat_measured$X15N_enrichment_EMRTs, dat_measured$Total_Efficiencies) # t = 20.419, df = 120, p-value < 2.2e-16, r = 0.881201, r2= 0.78
+cor.test(dat_calculated$X15N_enrichment_EMRTs, dat_calculated$Total_Efficiencies) # t = 735140772, df = 120, p-value < 2.2e-16, r = 1 
+
+p_measured_cal <-ggplot(dat, aes(x=dat$X15N_enrichment_EMRTs, y=dat$Total_Efficiencies, color= Treatment))+ 
+  geom_point(data=subset(dat,dat$Groups=="Measured"),
+             aes(X15N_enrichment_EMRTs, Total_Efficiencies),size=3)+
+  geom_smooth(data=subset(dat,dat$Groups=="Measured"),aes(X15N_enrichment_EMRTs, Total_Efficiencies),method="lm",size=1,color="darkgray")+
+  # geom_smooth(data=subset(dat,dat$Groups=="Calculated"),aes(X15N_enrichment_EMRTs, Total_Efficiencies),method="lm",size=1,color="red")+
+  labs(x=expression(paste("Measured ",""^15,"N in EM root tips (µg ",g^{-1},"DW)")),
+       y=expression(paste("Calculated ",""^15,"N in EM root tips (µg ",g^{-1},"DW)")))+
+  xlim (0,1000)+
+  ylim (0,1000)+
+  theme_bw()+
+  theme(axis.text.y=element_text(size=10,color = "black")) + 
+  theme(axis.text.x=element_text(size=10,color = "black")) +
+  theme(axis.title.x = element_text(size=10, face="bold"))+
+  theme(axis.title.y=element_text(size=10, face="bold")) + 
+  theme(legend.title = element_text(colour="black", size=12, face="bold"))+
+  theme(legend.text = element_text(colour = "black",size = 10))+
+  guides(colour = guide_legend(override.aes = list(size=8)))+
+  theme(legend.text = element_text(colour = "black",size = 12),
+        legend.justification=c(1,1), 
+        legend.position=c(0.998, 0.259))+
+  theme(panel.background = element_blank())+
+  scale_color_manual(breaks = c("15NH4", "15NO3"),values = c("steelblue"," black"),labels=c(expression(paste("",""^15,"NH"[4]^ +{})), expression(paste("",""^15,"NO"[3]^ -{}))))
+
+p_measured_cal
+
+# save the p1 plot in a file (run all three lines together)
+tiff(filename="scatter_cal_measured.tiff",width=1800,height=1400,res=300)
+p_measured_cal
+dev.off()
+
+### SP table 3####
+library(ggplot2)
+library(vegan)
+library(permute)
+library(dplyr)
+library(Rmisc)
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(reshape)
+library(reshape2)
+library(plyr)
+
+###Data read 
+rm(list=ls())
+meta_EMF<-read.table(file="Env variables in ECMF Speceis.txt",head=T,sep="\t")
+
+###Lock the factors, meaning i want the order as it is in the data file 
+meta_EMF$Harvest.season <- factor(meta_EMF$Harvest.season, levels= unique(meta_EMF$Harvest.season), ordered=TRUE)
+meta_EMF$EMF.species <- factor(meta_EMF$EMF.species, levels= unique(meta_EMF$EMF.species), ordered=TRUE)
+
+# Calc SEM  
+means.sem1 <- ddply(meta_EMF, c("EMF.species","Harvest.season"), summarise,
+                    mean=mean(X13C.12C), sem=sd(X13C.12C)/sqrt(length(X13C.12C)))
+means.sem2 <- ddply(meta_EMF, c("EMF.species","Harvest.season"), summarise,
+                    mean=mean(C.amount), sem=sd(C.amount)/sqrt(length(C.amount)))
+
+means.sem3 <- ddply(meta_EMF, c("EMF.species","Harvest.season"), summarise,
+                    mean=mean(N.amount), sem=sd(N.amount)/sqrt(length(N.amount)))
+
+means.sem4 <- ddply(meta_EMF, c("EMF.species","Harvest.season"), summarise,
+                    mean=mean(C.N), sem=sd(C.N)/sqrt(length(C.N)))
+
+means.sem5 <- ddply(meta_EMF, c("EMF.species","Harvest.season"), summarise,
+                    mean=mean(Enrichment), sem=sd(Enrichment)/sqrt(length(Enrichment)))
+###Write csv table 
+write.csv(means.sem1,file = "13C in ECMF.csv")
+write.csv(means.sem2,file = "C amount in ECMF.csv")
+write.csv(means.sem3,file = "N amount in ECMF.csv")
+write.csv(means.sem4,file = "CN ratio in ECMF.csv")
+write.csv(means.sem5,file = "15N enrichment in ECMF.csv")
+
+#Significance test of the meta /env data 
+SP<-(meta_EMF[1:197,])
+SU<-(meta_EMF[198:309,])
+AU<-(meta_EMF[310:488,])
+
+library(car)
+library(lme4)
+library(lmerTest)
+library(multcomp)
+library(multcompView)
+library(vegan)
+library(betareg)
+
+All<-read.table(file="15N_enrichment_EMF.txt",head=T,sep="\t")
+SP<-(All[1:197,])
+SU<-(All[198:309,])
+AU<-(All[310:488,])
+
+library(car)
+library(lme4)
+library(lmerTest)
+library(multcomp)
+library(multcompView)
+library(vegan)
+library(betareg)
+
+#####sPRING
+lme_SP_C<-lmer(data=SP,log(SP$C_EMF)~SP$Species+(1|Plot))
+lme_SP_N<-lmer(data=SP,log(SP$N_EMF)~SP$Species+(1|Plot))
+lme_SP_CN<-lmer(data=SP,log(SP$CN)~SP$Species+(1|Plot))
+lme_13C<-lmer(data=SP,SP$DELTA.13.12C_EMF~SP$Species+(1|Plot))
+lm_13C<-lm(data=SP,SP$DELTA.13.12C_EMF~SP$Species)
+
+anova(lme_SP_C)
+anova(lme_SP_N)
+anova(lme_SP_CN)
+anova(lme_13C)
+
+#Summer
+lme_SU_C<-lmer(data=SU,log(SU$C_EMF)~SU$Species+(1|Plot))
+lme_SU_N<-lmer(data=SU,log(SU$N_EMF)~SU$Species+(1|Plot))
+lme_SU_CN<-lmer(data=SU,log(SU$CN)~SU$Species+(1|Plot))
+lme_SU_13C<-lmer(data=SU,SU$DELTA.13.12C_EMF~SU$Species+(1|Plot))
+lm_SU_13C<-lm(data=SU,SU$DELTA.13.12C_EMF~SU$Species)
+
+anova(lme_SU_C)
+anova(lme_SU_N)
+anova(lme_SU_CN)
+anova(lme_SU_13C)
+
+#Autumn 
+lme_AU_C<-lmer(data=AU,log(AU$C_EMF)~AU$Species+(1|Plot))
+lme_AU_N<-lmer(data=AU,log(AU$N_EMF)~AU$Species+(1|Plot))
+lme_AU_CN<-lmer(data=AU,log(AU$CN)~AU$Species+(1|Plot))
+lme_AU_13C<-lmer(data=AU,AU$DELTA.13.12C_EMF~AU$Species+(1|Plot))
+lm_AU_13C<-lm(data=AU,AU$DELTA.13.12C_EMF~AU$Species)
+
+anova(lme_AU_C)
+anova(lme_AU_N)
+anova(lme_AU_CN)
+anova(lme_AU_13C)
+
+##15NH4 
+SP_NH4 <-(SP[SP$Treatment=="15NH4",])
+SP_NO3 <-(SP[SP$Treatment=="15NO3",])
+
+SU_NH4 <-(SU[SU$Treatment=="15NH4",])
+SU_NO3 <-(SU[SU$Treatment=="15NO3",])
+
+AU_NH4 <-(AU[AU$Treatment=="15NH4",])
+AU_NO3 <-(AU[AU$Treatment=="15NO3",])
+
+Sp_15NH4 <-lmer(data=SP_NH4,SP_NH4$Atom_15N_EMF~SP_NH4$Species+(1|Plot))
+Sp_15NO3 <-lmer(data=SP_NO3,SP_NO3$Atom_15N_EMF~SP_NO3$Species+(1|Plot))
+anova(Sp_15NH4)
+anova(Sp_15NO3)
+
+SU_15NH4 <-lmer(data=SU_NH4,SU_NH4$Atom_15N_EMF~SU_NH4$Species+(1|Plot))
+SU_15NO3 <-lmer(data=SU_NO3,SU_NO3$Atom_15N_EMF~SU_NO3$Species+(1|Plot))
+anova(SU_15NH4)
+anova(SU_15NO3)
+
+AU_15NH4 <-lmer(data=AU_NH4,AU_NH4$Atom_15N_EMF~AU_NH4$Species+(1|Plot))
+AU_15NO3 <-lmer(data=AU_NO3,AU_NO3$Atom_15N_EMF~AU_NO3$Species+(1|Plot))
+anova(AU_15NH4)
+anova(AU_15NO3)
+
+##sp table 4 :calculate mean and SE #####
+###Meta different sites 
+rm(list=ls())
+meta_site2<-read.table(file="v2_Meta_Sites.txt",head=T,sep="\t")
+All_summary <- summarySE(meta_site2, measurevar="X15N.enrichment_EMRT", groupvars=c("Harvest.season","Sites"))
+
+###Lock the factors, meaning i want the order as it is in the data file 
+meta_site2$Harvest.season <- factor(meta_site2$Harvest.season, levels= unique(meta_site2$Harvest.season), ordered=TRUE)
+meta_site2$Sites <- factor(meta_site2$Sites, levels= unique(meta_site2$Sites), ordered=TRUE)
+meta_site2$Treatment <- factor(meta_site2$Treatment, levels= unique(meta_site2$Treatment), ordered=TRUE)
+
+# Calc SEM  
+
+##EMRT 
+means.EMRT_C1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                       mean=mean(EMRT_C.amount,na.rm=T), sem=sd(EMRT_C.amount,na.rm=T)/sqrt(length(!is.na(EMRT_C.amount))))
+means.EMRT_C1
+means.EMRT_N1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                       mean=mean(EMRT.N.amount,na.rm=T), sem=sd(EMRT.N.amount,na.rm=T)/sqrt(length(!is.na(EMRT.N.amount))))
+means.EMRT_N1
+means.EMRT_CN1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                        mean=mean(EMRT_CN,na.rm=T), sem=sd(EMRT_CN,na.rm=T)/sqrt(length(!is.na(EMRT_CN))))
+means.EMRT_CN1
+means.EMRT_13C1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                         mean=mean(EMRT_DELTA.13.12C,na.rm=T), sem=sd(EMRT_DELTA.13.12C,na.rm=T)/sqrt(length(!is.na(EMRT_DELTA.13.12C))))
+means.EMRT_13C1 
+means.EMRT_15N1 <- ddply(meta_site2, c("Sites","Harvest.season","Treatment"), summarise,
+                         mean=mean(X15N.enrichment_EMRT,na.rm=T), sem=sd(X15N.enrichment_EMRT,na.rm=T)/sqrt(length(!is.na(X15N.enrichment_EMRT))))
+means.EMRT_15N1
+
+write.csv(means.EMRT_C1,file = "EMRT_C1.csv")
+write.csv(means.EMRT_N1,file = "EMRT_N1.csv")
+write.csv(means.EMRT_CN1,file = "EMRT_CN1.csv")
+write.csv(means.EMRT_13C1,file = "EMRT_13C1.csv")
+write.csv(means.EMRT_15N1,file = "EMRT_15n1.csv")
+
+##Fine 
+
+means.Fine_C1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                       mean=mean(Fine_C.amount,na.rm=T), sem=sd(Fine_C.amount,na.rm=T)/sqrt(length(!is.na(Fine_C.amount))))
+means.Fine_N1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                       mean=mean(Fine_N.amount,na.rm=T), sem=sd(Fine_N.amount,na.rm=T)/sqrt(length(!is.na(Fine_N.amount))))
+means.Fine_CN1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                        mean=mean(Fine_CN,na.rm=T), sem=sd(Fine_CN,na.rm=T)/sqrt(length(!is.na(Fine_CN))))
+means.Fine_13C1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                         mean=mean(Fine_DELTA.13.12C,na.rm=T), sem=sd(Fine_DELTA.13.12C,na.rm=T)/sqrt(length(!is.na(Fine_DELTA.13.12C))))
+means.Fine_15N1 <- ddply(meta_site2, c("Sites","Harvest.season","Treatment"), summarise,
+                         mean=mean(X15N.enrichment_Fine,na.rm=T), sem=sd(X15N.enrichment_Fine,na.rm=T)/sqrt(length(!is.na(X15N.enrichment_Fine))))
+
+write.csv(means.Fine_C1,file = "Fine_C1.csv")
+write.csv(means.Fine_N1,file = "Fine_N1.csv")
+write.csv(means.Fine_CN1,file = "Fine_CN1.csv")
+write.csv(means.Fine_13C1,file = "Fine_13C1.csv")
+write.csv(means.Fine_15N1,file = "Fine_15n1.csv")
+
+##Coarse 
+
+means.Coarse_C1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                         mean=mean(Coarse_C.amount,na.rm=T), sem=sd(Coarse_C.amount,na.rm=T)/sqrt(length(!is.na(Coarse_C.amount))))
+means.Coarse_N1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                         mean=mean(Coarse_N.amount,na.rm=T), sem=sd(Coarse_N.amount,na.rm=T)/sqrt(length(!is.na(Coarse_N.amount))))
+means.Coarse_CN1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                          mean=mean(Coarse_CN,na.rm=T), sem=sd(Coarse_CN,na.rm=T)/sqrt(length(!is.na(Coarse_CN))))
+means.Coarse_13C1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                           mean=mean(Coarse_DELTA.13.12C,na.rm=T), sem=sd(Coarse_DELTA.13.12C,na.rm=T)/sqrt(length(!is.na(Coarse_DELTA.13.12C))))
+means.Coarse_15N1 <- ddply(meta_site2, c("Sites","Harvest.season","Treatment"), summarise,
+                           mean=mean(X15N.enrichment_Coarse,na.rm=T), sem=sd(X15N.enrichment_Coarse,na.rm=T)/sqrt(length(!is.na(X15N.enrichment_Coarse))))
+
+write.csv(means.Coarse_C1,file = "Coarse_C1.csv")
+write.csv(means.Coarse_N1,file = "Coarse_N1.csv")
+write.csv(means.Coarse_CN1,file = "Coarse_CN1.csv")
+write.csv(means.Coarse_13C1,file = "Coarse_13C1.csv")
+write.csv(means.Coarse_15N1,file = "Coarse_15n1.csv")
+
+##Transport 
+
+means.Transport_C1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                            mean=mean(Transport,na.rm=T), sem=sd(Transport,na.rm=T)/sqrt(length(!is.na(Transport))))
+means.Transport_N1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                            mean=mean(Transport_N.amount,na.rm=T), sem=sd(Transport_N.amount,na.rm=T)/sqrt(length(!is.na(Transport_N.amount))))
+means.Transport_CN1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                             mean=mean(Transport_CN,na.rm=T), sem=sd(Transport_CN,na.rm=T)/sqrt(length(!is.na(Transport_CN))))
+means.Transport_13C1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                              mean=mean(Transport_DELTA.13.12C,na.rm=T), sem=sd(Transport_DELTA.13.12C,na.rm=T)/sqrt(length(!is.na(Transport_DELTA.13.12C))))
+means.Transport_15N1 <- ddply(meta_site2, c("Sites","Harvest.season","Treatment"), summarise,
+                              mean=mean(X15N.enrichment_Transport,na.rm=T), sem=sd(X15N.enrichment_Transport,na.rm=T)/sqrt(length(!is.na(X15N.enrichment_Coarse))))
+
+write.csv(means.Transport_C1,file = "Transport_C1.csv")
+write.csv(means.Transport_N1,file = "Transport_N1.csv")
+write.csv(means.Transport_CN1,file = "Transport_CN1.csv")
+write.csv(means.Transport_13C1,file = "Transport_13C1.csv")
+write.csv(means.Transport_15N1,file = "Transport_15n1.csv")
+
+####Stats sp table 4 #####
+###
+meta_site2<-read.table(file="v2_Meta_Sites.txt",head=T,sep="\t")
+HEW <-(meta_site2[1:90,])
+SEW <-(meta_site2[91:180,])
+
+HEW_AM<-(HEW[1:45,])
+HEW_NI<-(HEW[45:90,])
+SEW_AM<-(SEW[1:45,])
+SEW_NI<-(SEW[45:90,])
+
+meta_AM <- meta_site2[meta_site2$Treatment == "15NH4", ]
+meta_NI <- meta_site2[meta_site2$Treatment == "15NO3", ]
+
+library(car)
+library(lme4)
+library(lmerTest)
+library(multcomp)
+library(multcompView)
+library(vegan)
+
+#####HEW
+##EM 
+HEW_lme_EM_C<-lmer(data=HEW,log(HEW$EMRT_C.amount)~HEW$Harvest.season+(1|Plot))
+HEW_lme_EM_N<-lmer(data=HEW,log(HEW$EMRT.N.amount)~HEW$Harvest.season+(1|Plot))
+HEW_lme_EM_CN<-lmer(data=HEW,log(HEW$EMRT_CN)~HEW$Harvest.season+(1|Plot))
+HEW_lme_EM_13C<-lmer(data=HEW,HEW$EMRT_DELTA.13.12C~HEW$Harvest.season+(1|Plot))
+HEW_lm_EM_AM<-lmer(data=HEW_AM, log(HEW_AM$X15N.enrichment_EMRT)~HEW_AM$Harvest.season+(1|Plot))
+HEW_lm_EM_Ni<-lmer(data=HEW_NI, log(HEW_NI$X15N.enrichment_EMRT)~HEW_NI$Harvest.season+(1|Plot))
+
+anova(HEW_lme_EM_C)
+anova(HEW_lme_EM_N)
+anova(HEW_lme_EM_CN)
+anova(HEW_lme_EM_13C)
+anova(HEW_lm_EM_AM)
+anova(HEW_lm_EM_Ni)
+
+##Fine 
+HEW_lme_Fine_C<-lmer(data=HEW,log(HEW$Fine_C.amount)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Fine_N<-lmer(data=HEW,log(HEW$Fine_N.amount)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Fine_CN<-lmer(data=HEW,log(HEW$Fine_CN)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Fine_13C<-lmer(data=HEW,HEW$Fine_DELTA.13.12C~HEW$Harvest.season+(1|Plot))
+HEW_lm_Fine_AM<-lmer(data=HEW_AM, log(HEW_AM$X15N.enrichment_Fine)~HEW_AM$Harvest.season+(1|Plot))
+HEW_lm_Fine_Ni<-lmer(data=HEW_NI, log(HEW_NI$X15N.enrichment_Fine)~HEW_NI$Harvest.season+(1|Plot))
+
+anova(HEW_lme_Fine_C)
+anova(HEW_lme_Fine_N)
+anova(HEW_lme_Fine_CN)
+anova(HEW_lme_Fine_13C)
+anova(HEW_lm_Fine_AM)
+anova(HEW_lm_Fine_Ni)
+
+##Coarse 
+HEW_lme_Coarse_C<-lmer(data=HEW,log(HEW$Coarse_C.amount)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Coarse_N<-lmer(data=HEW,log(HEW$Coarse_N.amount)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Coarse_CN<-lmer(data=HEW,log(HEW$Coarse_CN)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Coarse_13C<-lmer(data=HEW,HEW$Coarse_DELTA.13.12C~HEW$Harvest.season+(1|Plot))
+HEW_lm_Coarse_AM<-lmer(data=HEW_AM, log(HEW_AM$X15N.enrichment_Coarse)~HEW_AM$Harvest.season+(1|Plot))
+HEW_lm_Coarse_Ni<-lmer(data=HEW_NI, log(HEW_NI$X15N.enrichment_Coarse)~HEW_NI$Harvest.season+(1|Plot))
+
+anova(HEW_lme_Coarse_C)
+anova(HEW_lme_Coarse_N)
+anova(HEW_lme_Coarse_CN)
+anova(HEW_lme_Coarse_13C)
+anova(HEW_lm_Coarse_AM)
+anova(HEW_lm_Coarse_Ni)
+
+##Transport 
+HEW_lme_Transport_C<-lmer(data=HEW,log(HEW$Transport)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Transport_N<-lmer(data=HEW,log(HEW$Transport_N.amount)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Transport_CN<-lmer(data=HEW,log(HEW$Transport_CN)~HEW$Harvest.season+(1|Plot))
+HEW_lme_Transport_13C<-lmer(data=HEW,HEW$Transport_DELTA.13.12C~HEW$Harvest.season+(1|Plot))
+HEW_lm_Transport_AM<-lmer(data=HEW_AM, log(HEW_AM$X15N.enrichment_Transport)~HEW_AM$Harvest.season+(1|Plot))
+HEW_lm_Transport_Ni<-lmer(data=HEW_NI, log(HEW_NI$X15N.enrichment_Transport)~HEW_NI$Harvest.season+(1|Plot))
+
+anova(HEW_lme_Transport_C)
+anova(HEW_lme_Transport_N)
+anova(HEW_lme_Transport_CN)
+anova(HEW_lme_Transport_13C)
+anova(HEW_lm_Transport_AM)
+anova(HEW_lm_Transport_Ni)
+
+#####SEW
+##EM 
+SEW_lme_EM_C<-lmer(data=SEW,log(SEW$EMRT_C.amount)~SEW$Harvest.season+(1|Plot))
+SEW_lme_EM_N<-lmer(data=SEW,log(SEW$EMRT.N.amount)~SEW$Harvest.season+(1|Plot))
+SEW_lme_EM_CN<-lmer(data=SEW,log(SEW$EMRT_CN)~SEW$Harvest.season+(1|Plot))
+SEW_lme_EM_13C<-lmer(data=SEW,SEW$EMRT_DELTA.13.12C~SEW$Harvest.season+(1|Plot))
+SEW_lm_EM_AM<-lmer(data=SEW_AM, log(SEW_AM$X15N.enrichment_EMRT)~SEW_AM$Harvest.season+(1|Plot))
+SEW_lm_EM_Ni<-lmer(data=SEW_NI, log(SEW_NI$X15N.enrichment_EMRT)~SEW_NI$Harvest.season+(1|Plot))
+
+anova(SEW_lme_EM_C)
+anova(SEW_lme_EM_N)
+anova(SEW_lme_EM_CN)
+anova(SEW_lme_EM_13C)
+anova(SEW_lm_EM_AM)
+anova(SEW_lm_EM_Ni)
+
+##Fine 
+
+SEW_lme_Fine_C<-lmer(data=SEW,log(SEW$Fine_C.amount)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Fine_N<-lmer(data=SEW,log(SEW$Fine_N.amount)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Fine_CN<-lmer(data=SEW,log(SEW$Fine_CN)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Fine_13C<-lmer(data=SEW,SEW$Fine_DELTA.13.12C~SEW$Harvest.season+(1|Plot))
+SEW_lm_Fine_AM<-lmer(data=SEW_AM, log(SEW_AM$X15N.enrichment_Fine)~SEW_AM$Harvest.season+(1|Plot))
+SEW_lm_Fine_Ni<-lmer(data=SEW_NI, log(SEW_NI$X15N.enrichment_Fine)~SEW_NI$Harvest.season+(1|Plot))
+
+anova(SEW_lme_Fine_C)
+anova(SEW_lme_Fine_N)
+anova(SEW_lme_Fine_CN)
+anova(SEW_lme_Fine_13C)
+anova(SEW_lm_Fine_AM)
+anova(SEW_lm_Fine_Ni)
+
+##Coarse 
+
+SEW_lme_Coarse_C<-lmer(data=SEW,log(SEW$Coarse_C.amount)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Coarse_N<-lmer(data=SEW,log(SEW$Coarse_N.amount)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Coarse_CN<-lmer(data=SEW,log(SEW$Coarse_CN)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Coarse_13C<-lmer(data=SEW,SEW$Coarse_DELTA.13.12C~SEW$Harvest.season+(1|Plot))
+SEW_lm_Coarse_AM<-lmer(data=SEW_AM, log(SEW_AM$X15N.enrichment_Coarse)~SEW_AM$Harvest.season+(1|Plot))
+SEW_lm_Coarse_Ni<-lmer(data=SEW_NI, log(SEW_NI$X15N.enrichment_Coarse)~SEW_NI$Harvest.season+(1|Plot))
+
+anova(SEW_lme_Coarse_C)
+anova(SEW_lme_Coarse_N)
+anova(SEW_lme_Coarse_CN)
+anova(SEW_lme_Coarse_13C)
+anova(SEW_lm_Coarse_AM)
+anova(SEW_lm_Coarse_Ni)
+
+##Transport 
+SEW_lme_Transport_C<-lmer(data=SEW,log(SEW$Transport)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Transport_N<-lmer(data=SEW,log(SEW$Transport_N.amount)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Transport_CN<-lmer(data=SEW,log(SEW$Transport_CN)~SEW$Harvest.season+(1|Plot))
+SEW_lme_Transport_13C<-lmer(data=SEW,SEW$Transport_DELTA.13.12C~SEW$Harvest.season+(1|Plot))
+SEW_lm_Transport_AM<-lmer(data=SEW_AM, log(SEW_AM$X15N.enrichment_Transport)~SEW_AM$Harvest.season+(1|Plot))
+SEW_lm_Transport_Ni<-lmer(data=SEW_NI, log(SEW_NI$X15N.enrichment_Transport)~SEW_NI$Harvest.season+(1|Plot))
+
+anova(SEW_lme_Transport_C)
+anova(SEW_lme_Transport_N)
+anova(SEW_lme_Transport_CN)
+anova(SEW_lme_Transport_13C)
+anova(SEW_lm_Transport_AM)
+anova(SEW_lm_Transport_Ni)
+
+#####compare region (HAI vs SCH)  
+##EM 
+lme_EM_C<-lmer(data=meta_site2,log(meta_site2$EMRT_C.amount)~meta_site2$Site+(1|Harvest.season))
+lme_EM_N<-lmer(data=meta_site2,log(meta_site2$EMRT.N.amount)~meta_site2$Site+(1|Harvest.season))
+lme_EM_CN<-lmer(data=meta_site2,log(meta_site2$EMRT_CN)~meta_site2$Site+(1|Harvest.season))
+lme_EM_13C<-lmer(data=meta_site2,meta_site2$EMRT_DELTA.13.12C~meta_site2$Site+(1|Harvest.season))
+lm_EM_AM<-lmer(data=meta_AM, log(meta_AM$X15N.enrichment_EMRT)~meta_AM$Sites+(1|Harvest.season))
+lm_EM_Ni<-lmer(data=meta_NI, log(meta_NI$X15N.enrichment_EMRT)~meta_NI$Sites+(1|Harvest.season))
+
+anova(lme_EM_C)
+anova(lme_EM_N)
+anova(lme_EM_CN)
+anova(lme_EM_13C)
+anova(lm_EM_AM)
+anova(lm_EM_Ni)
+
+##Fine 
+lme_Fine_C<-lmer(data=meta_site2,log(meta_site2$Fine_C.amount)~meta_site2$Site+(1|Harvest.season))
+lme_Fine_N<-lmer(data=meta_site2,log(meta_site2$Fine_N.amount)~meta_site2$Site+(1|Harvest.season))
+lme_Fine_CN<-lmer(data=meta_site2,log(meta_site2$Fine_CN)~meta_site2$Site+(1|Harvest.season))
+lme_Fine_13C<-lmer(data=meta_site2,meta_site2$Fine_DELTA.13.12C~meta_site2$Site+(1|Harvest.season))
+lm_Fine_AM<-lmer(data=meta_AM, log(meta_AM$X15N.enrichment_Fine)~meta_AM$Sites+(1|Harvest.season))
+lm_Fine_Ni<-lmer(data=meta_NI, log(meta_NI$X15N.enrichment_Fine)~meta_NI$Sites+(1|Harvest.season))
+
+anova(lme_Fine_C)
+anova(lme_Fine_N)
+anova(lme_Fine_CN)
+anova(lme_Fine_13C)
+anova(lm_Fine_AM)
+anova(lm_Fine_Ni)
+
+##Coarse 
+lme_Coarse_C<-lmer(data=meta_site2,log(meta_site2$Coarse_C.amount)~meta_site2$Site+(1|Harvest.season))
+lme_Coarse_N<-lmer(data=meta_site2,log(meta_site2$Coarse_N.amount)~meta_site2$Site+(1|Harvest.season))
+lme_Coarse_CN<-lmer(data=meta_site2,log(meta_site2$Coarse_CN)~meta_site2$Site+(1|Harvest.season))
+lme_Coarse_13C<-lmer(data=meta_site2,meta_site2$Coarse_DELTA.13.12C~meta_site2$Site+(1|Harvest.season))
+lm_Coarse_AM<-lmer(data=meta_AM, log(meta_AM$X15N.enrichment_Coarse)~meta_AM$Sites+(1|Harvest.season))
+lm_Coarse_Ni<-lmer(data=meta_NI, log(meta_NI$X15N.enrichment_Coarse)~meta_NI$Sites+(1|Harvest.season))
+
+anova(lme_Coarse_C)
+anova(lme_Coarse_N)
+anova(lme_Coarse_CN)
+anova(lme_Coarse_13C)
+anova(lm_Coarse_AM)
+anova(lm_Coarse_Ni)
+
+##Transport 
+lme_Transport_C<-lmer(data=meta_site2,log(meta_site2$Transport)~meta_site2$Site+(1|Harvest.season))
+lme_Transport_N<-lmer(data=meta_site2,log(meta_site2$Transport_N.amount)~meta_site2$Site+(1|Harvest.season))
+lme_Transport_CN<-lmer(data=meta_site2,log(meta_site2$Transport_CN)~meta_site2$Site+(1|Harvest.season))
+lme_Transport_13C<-lmer(data=meta_site2,meta_site2$Transport_DELTA.13.12C~meta_site2$Site+(1|Harvest.season))
+lm_Transport_AM<-lmer(data=meta_AM, log(meta_AM$X15N.enrichment_Transport)~meta_AM$Sites+(1|Harvest.season))
+lm_Transport_Ni<-lmer(data=meta_NI, log(meta_NI$X15N.enrichment_Transport)~meta_NI$Sites+(1|Harvest.season))
+
+anova(lme_Transport_C)
+anova(lme_Transport_N)
+anova(lme_Transport_CN)
+anova(lme_Transport_13C)
+anova(lm_Transport_AM)
+anova(lm_Transport_Ni)
+
+### table 1 ####
+###Meta different season____mycorrhizal calculation 
+rm(list=ls())
+meta_site2<-read.table(file="meta_36samples.txt",head=T,sep="\t")
+
+###Lock the factors, meaning i want the order as it is in the data file 
+meta_site2$Harvest.season <- factor(meta_site2$Harvest.season, levels= unique(meta_site2$Harvest.season), ordered=TRUE)
+meta_site2$Sites <- factor(meta_site2$Sites, levels= unique(meta_site2$Sites), ordered=TRUE)
+meta_site2$Treatment <- factor(meta_site2$Treatment, levels= unique(meta_site2$Treatment), ordered=TRUE)
+
+# Calc SEM  
+
+#####Mycorrhizal 
+means.Richness1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                         mean=mean(Taxa_S,na.rm=T), sem=sd(Taxa_S,na.rm=T)/sqrt(length(!is.na(Taxa_S))))
+means.Richness1
+
+means.Shannon1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                        mean=mean(Shannon_H,na.rm=T), sem=sd(Shannon_H,na.rm=T)/sqrt(length(!is.na(Shannon_H))))
+means.Shannon1
+means.Evenness1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                         mean=mean(Evenness_e.H.S,na.rm=T), sem=sd(Evenness_e.H.S,na.rm=T)/sqrt(length(!is.na(Evenness_e.H.S))))
+means.Evenness1
+means.EM_colonization1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                                mean=mean(X2EM.colonization,na.rm=T), sem=sd(X2EM.colonization,na.rm=T)/sqrt(length(!is.na(X2EM.colonization))))
+means.EM_colonization1
+means.Vitality1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                         mean=mean(Vitality.index,na.rm=T), sem=sd(Vitality.index,na.rm=T)/sqrt(length(!is.na(Vitality.index))))
+means.Vitality1
+means.VRT1 <- ddply(meta_site2, c("Sites","Harvest.season"), summarise,
+                    mean=mean(Total.VRT,na.rm=T), sem=sd(Total.VRT,na.rm=T)/sqrt(length(!is.na(Total.VRT))))
+
+write.csv(means.Richness1,file = "EM Speceis Richness1.csv")
+write.csv(means.Shannon1,file = "Shannon1.csv")
+write.csv(means.Evenness1,file = "Eveness1.csv")
+write.csv(means.EM_colonization1,file = "EM colonization rate1.csv")
+write.csv(means.Vitality1,file = "Vitality index1.csv")
+
+####Stats : table 1 ####
+HEW <-(meta_site2[1:54,])
+SEW <-(meta_site2[55:108,])
+
+library(car)
+library(lme4)
+library(lmerTest)
+library(multcomp)
+library(multcompView)
+library(vegan)
+library(betareg)
+
+###Compare region (HAI vs SCH) 
+beta_VI<-betareg(meta_site2$X2Vitality.index~meta_site2$Sites,data=meta_site2)
+Anova(beta_VI)
+
+kruskal.test(data=meta_site2, meta_site2$X2EM.colonization~meta_site2$Sites)
+
+glm_Taxa<-glmer(data=meta_site2, meta_site2$Taxa_S~meta_site2$Sites+(1|Harvest.season),family="poisson")
+Anova(glm_Taxa,test="Chisq")
+
+lme_Shannon <- lmer(data=meta_site2, meta_site2$Shannon_H~meta_site2$Sites+(1|Harvest.season))
+Anova(lme_Shannon)
+
+lme_eveness <- lmer(data=meta_site2, meta_site2$Evenness_e.H.S~meta_site2$Sites+(1|Harvest.season))
+Anova(lme_eveness)
+
+###interaction with season and region 
+int <- interaction(meta_site2$Harvest.season,meta_site2$Sites)
+
+lme_VI <- lmer(data=meta_site2, meta_site2$X2Vitality.index ~ int+(1|Plot))
+Anova(lme_VI)
+glhtlme_VI<-glht(lme_VI,linfct=mcp(int="Tukey"))
+summary(glhtlme_VI)
+cld(glhtlme_VI)
+
+lme_Col_R <- lmer(data=meta_site2, meta_site2$X2EM.colonization ~ int+(1|Plot))
+Anova(lme_Col_R)
+glhtlme_Col_R<-glht(lme_Col_R,linfct=mcp(int="Tukey"))
+summary(glhtlme_Col_R)
+cld(glhtlme_Col_R)
+
+lme_SR <- glmer(data=meta_site2, meta_site2$Taxa_S ~ int+(1|Plot),family="poisson")
+Anova(lme_SR)
+glhtlme_SR<-glht(lme_SR,linfct=mcp(int="Tukey"))
+summary(glhtlme_SR)
+cld(glhtlme_SR)
+
+lme_Shannon <- lmer(data=meta_site2, Shannon_H ~ int+(1|Plot))
+anova(lme_Shannon)
+glhtlme1<-glht(lme_Shannon,linfct=mcp(int="Tukey"))
+summary(glhtlme1)
+cld(glhtlme1)
+
+lme_eveness <- lmer(data=meta_site2, meta_site2$Evenness_e.H.S ~ int+(1|Plot))
+anova(lme_eveness)
+glhtlme_eveness<-glht(lme_eveness,linfct=mcp(int="Tukey"))
+summary(glhtlme_eveness)
+cld(glhtlme_eveness)
+
+##### NMDS plot of the EM assemblages in NH4 and NO3 treatment groups#### 
+library(vegan)
+library(devEMF)
+
+##load the data 
+dat<-read.table(file="15N_dataset_review.txt",head=T,sep="\t")
+
+##EM community data 
+data_comm <-dat[,62:114] # subset: only the fungi count data
+
+#Treatment groups: 15NH4, 15NO3 
+Ammonium <-dat[dat$Treatment=="15NH4",]
+Nitrate <-dat[dat$Treatment=="15NO3",]
+
+# calculate NMDS:
+N<-metaMDS(data_comm,k=2,trymax=200,trace=F,autotransform=FALSE,distance="bray")
+# check analysis:
+N
+
+# set up color vector for 122 plots:
+cols<-c(rep("steelblue",62),rep("black",60))
+ordiplot(N, type = "n",xlim=c(-1,1)) # create empty plot
+points(N,display = "sites", pch = 16, col = cols,cex=1.5) # add plots, colored by treatment
+orditorp(N, display = "species", col = "black", air = 0.01) # add specie
+
+ano = anosim(data_comm, dat$Treatment, distance = "bray", permutations = 9999)
+ano
+
+#stress = 0.20
+#ANOSIM statistic R = -0.009284 
+# p = 0.841 
+
+##calculate Bray Curtis dissimilarity ####
+library (vegan)
+
+Amm_abund <- decostand (Ammonium[,62:114], method = 'hellinger')
+Nit_abund <- decostand (Nitrate[,62:114], method = 'hellinger')
+
+#abundance data frame - bray curtis dissimilarity
+Amm.dist.abund = vegdist(Amm_abund, method = "bray")
+Amm.abund = as.vector(Amm.dist.abund)
+write.csv(Amm.abund,"Bray_curtis_dis_Amm_abund.csv")
+
+Nit.dist.abund = vegdist(Nit_abund, method = "bray")
+Nit.abund = as.vector(Nit.dist.abund)
+write.csv(Nit.abund,"Bray_curtis_dis_Nit_abund.csv")
+
+#environmental vector - euclidean distance
+Amm.dist.transport = vegdist(Ammonium$Transport_15N.enrichment, method = "euclidean")
+A_T = as.vector(Amm.dist.transport)
+write.csv(A_T,"Bray_curtis_dis_A_T.csv")
+
+Amm.dist.whole = vegdist(Ammonium$Whole.root_N.uptake, method = "euclidean")
+A_whole = as.vector(Amm.dist.whole)
+write.csv(A_whole,"Bray_curtis_dis_A_whole.csv")
+
+Nit.dist.transport = vegdist(Nitrate$Transport_15N.enrichment, method = "euclidean")
+N_T = as.vector(Nit.dist.transport)
+write.csv(N_T,"Bray_curtis_dis_N_T_log.csv")
+
+Nit.dist.whole = vegdist(Nitrate$Whole.root_N.uptake, method = "euclidean")
+N_whole = as.vector(Nit.dist.whole)
+write.csv(N_whole,"Bray_curtis_dis_N_whole.csv")
+
+#Ammonium and nitrate abundance vs n uptake  
+abund_A_T = mantel(Amm.dist.transport, Amm.dist.abund, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_A_T
+
+abund_A_whole = mantel(Amm.dist.whole, Amm.dist.abund, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_A_whole
+
+abund_N_T = mantel(Nit.dist.transport, Nit.dist.abund, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_N_T
+
+abund_N_whole = mantel(Nit.dist.whole, Nit.dist.abund, method = "spearman", permutations = 9999, na.rm = TRUE)
+abund_N_whole
+
+##plot Bray-Curtis Dissimilarity and 15N enrichment distance ####
+dat_bray_N <-read.table(file="Bray_N_uptake.txt",head=T,sep="\t")
+
+Plot_Transport <-ggplot(dat_bray_N, aes(x=dat_bray_N$Bray_dis, y=dat_bray_N$Eu_Transport,color=dat_bray_N$Treatment))+ 
+  geom_point(size=2, alpha=0.6)+
+  geom_smooth(method="lm",size=1.5)+
+  labs(x=expression(paste("Bray-Curtis Dissimilarity")),
+       y=expression(paste("",""^15,"N enrichment distance")))+
+  theme_bw()+
+  theme(axis.text.y=element_text(size=10,vjust=1,color = "black")) + 
+  theme(axis.text.x=element_text(hjust=1,vjust=1, size=10,color = "black")) +
+  theme(axis.title.x = element_text(size=12, face="bold", vjust=1))+
+  theme(axis.title.y=element_text(size=12, face="bold", vjust=1)) + 
+  theme(legend.title = element_text(colour="black", size=12, face="bold"))+
+  theme(legend.text = element_text(colour = "black",size = 10))+
+  theme(panel.background = element_blank())+
+  scale_color_manual(name= "Treatment", breaks = c("15NH4", "15NO3"),values = c("steelblue","black"),
+                     labels=c(expression(paste("",""^15,"NH"[4]^ +{})), expression(paste("",""^15,"NO"[3]^ -{}))))+
+  guides(colour = guide_legend(override.aes = list(size=5)))
+
+Plot_Transport
+
+Plot_whole <-ggplot(dat_bray_N, aes(x=dat_bray_N$Bray_dis, y=dat_bray_N$Eu_Whole,color=dat_bray_N$Treatment))+ 
+  geom_point(size=2, alpha=0.6)+
+  geom_smooth(method="lm",size=1.5)+
+  labs(x=expression(paste("Bray-Curtis Dissimilarity")),
+       y=expression(paste("",""^15,"N enrichment distance")))+
+  theme_bw()+
+  theme(axis.text.y=element_text(size=10,vjust=1,color = "black")) + 
+  theme(axis.text.x=element_text(hjust=1,vjust=1, size=10,color = "black")) +
+  theme(axis.title.x = element_text(size=12, face="bold", vjust=1))+
+  theme(axis.title.y=element_text(size=12, face="bold", vjust=1)) + 
+  theme(legend.title = element_text(colour="black", size=12, face="bold"))+
+  theme(legend.text = element_text(colour = "black",size = 10))+
+  theme(panel.background = element_blank())+
+  scale_color_manual(name= "Treatment", breaks = c("15NH4", "15NO3"),values = c("steelblue","black"),
+                     labels=c(expression(paste("",""^15,"NH"[4]^ +{})), expression(paste("",""^15,"NO"[3]^ -{}))))+
+  guides(colour = guide_legend(override.aes = list(size=5)))
+
+Plot_whole
+
+##combine plots 
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(emmeans)
+library(nlme)
+library(ggpubr)
+library(dplyr)
+
+all.plot <- ggarrange(Plot_Transport, Plot_whole, 
+                      labels = c("a)", "b)"),
+                      ncol = 2, nrow = 1, common.legend = TRUE, legend="top", font.label = list(size = 15))
+all.plot
+
+tiff(filename="Bray_curtis vs 15N_without_log.tiff",width=2200,height=1200,res=300)
+all.plot
+dev.off()
+
+### cor. EM amm vs nit #### 
+library(viridis)
+library(ggrepel)
+dat<-read.table(file="Scatterd_plot_EM_Amm_Nit.txt",head=T,sep="\t")
+
+cor.test(dat$Amm, dat$Nit) # t = 1.16, df = 71, p = 0.25, r = 0.14
+
+EM_treatment <-ggplot(dat, aes(x=Amm, y=Nit))+ 
+  geom_point(size=6, aes(color=Season))+
+  geom_smooth(method="lm", se = FALSE, colour = "blue", size =1)+
+  #geom_errorbar(aes(xmin = Amm - SE_amm, xmax = Amm + SE_amm))+
+  #geom_errorbar(aes(ymin = Nit - SE_nit, ymax = Nit + SE_nit))+
+  labs(x=expression(paste("",""^15,"NH"[4]^ +{}, " enrichment (µg ",g^{-1},"DW)")),
+       y=expression(paste("",""^15,"NO"[3]^ -{}, " enrichment (µg ",g^{-1},"DW)")))+
+  coord_cartesian(xlim = c(0,1500), ylim = c(0,1500))+
+  #coord_fixed(xlim = c(0,1500), ylim = c(0,1500))+
+  geom_abline(slope = 1, intercept = 0, color= "black", size = 1)+
+  scale_fill_manual(values=c("black"))+
+  theme_bw()+
+  theme(axis.text.y=element_text(size=14,color = "black")) + 
+  theme(axis.text.x=element_text(size=14,color = "black")) +
+  theme(axis.title.x = element_text(size=18, face="bold"))+
+  theme(axis.title.y=element_text(size=18, face="bold")) + 
+  theme(legend.title = element_text(colour="black", size=16, face="bold"))+
+  theme(legend.text = element_text(colour = "black",size = 16))+
+  theme(panel.background = element_blank())+
+  theme(legend.text = element_text(colour = "black",size = 12),
+        legend.justification=c(1,1), 
+        legend.position=c(0.109, 0.995))+
+  geom_text(data = dat, mapping = aes(x=Amm, y=Nit,label = Species2),
+            size =4,hjust = -0.5, nudge_x = 0.05, 
+            lineheight = 1, inherit.aes = FALSE)+
+  theme(panel.grid = element_blank())
+#geom_label_repel(aes(label = Species), size = 3)
+
+EM_treatment
+
+# save the p1 plot in a file (run all three lines together)
+tiff(filename="v2scatter_ammonium_nitrate_EM.tiff",width=3500,height=2500,res=300)
+EM_treatment
+dev.off()
+
+###linear regression 15N enrichment in root ~ efficiency of EM species ####
+##Model for 15NH4 
+##transport 
+M1_AT <-lm(data=Ammonium,Ammonium$Transport_15N.enrichment~
+             Efficiencies_Lactarius.subdulcis+Efficiencies_Pezizales.sp..1+Efficiencies_Xerocomus.pruinatus+
+             Efficiencies_Russula.mairei+Efficiencies_Lactarius.blennius+Efficiencies_Tomentella.coerulea+
+             Efficiencies_Xerocomus.cisalpinus+Efficiencies_Laccaria.amethystina+Efficiencies_Genea.hispidula+
+             Efficiencies_Inocybe.maculata+Efficiencies_Tomentella.bryophila+Efficiencies_Hebeloma.velutipes+
+             Efficiencies_Pachyphlodes.conglomerata+Efficiencies_Humaria.hemisphaerica+ Efficiencies_Clavulina.cristata+
+             Efficiencies_Byssocorticium.sp.+Efficiencies_Russula.solaris+Efficiencies_Pseudotomentella.tristis+
+             Efficiencies_Tricholoma.sulphureum+Efficiencies_Pezizaceae.sp.+Efficiencies_Ilyonectria.pseudodestructans+
+             Efficiencies_Tomentella.sublilacina+Efficiencies_Russula.paludosa+Efficiencies_Tuber.puberulum+
+             Efficiencies_Tomentella.ramosissima+Efficiencies_Inocybe.petiginosa+Efficiencies_Xerocomus.chrysenteron+
+             Efficiencies_Pachyphlodes.nemoralis+Efficiencies_Tomentella.stuposa+Efficiencies_Tomentella.lilacinogrisea+
+             Efficiencies_Helotiales.sp..1+Efficiencies_Uncultured.Thelephoraceae.sp.+Efficiencies_Russula.integriformis+
+             Efficiencies_MTSU6+Efficiencies_Pachyphlodes.melanoxanthus+Efficiencies_Tomentella.viridula+
+             Efficiencies_Inocybe.griseolilacina+Efficiencies_Sebacina.flagelliformis+Efficiencies_Inocybe.splendens+
+             Efficiencies_Pezizales.sp..2+Efficiencies_Polyphilus.sieberi+Efficiencies_Paxillus.involutus+
+             Efficiencies_Russula.cerolens+Efficiencies_Tomentella.punicea+Efficiencies_Cenococcum.geophilum+
+             Efficiencies_Russula.ochroleuca+Efficiencies_Tomentella.sp.+Efficiencies_Cortinarius.casimiri+
+             Efficiencies_Helotiales.sp..2+Efficiencies_Xerocomus.badius+Efficiencies_Inocybe.cf..microspora+
+             Efficiencies_Sebacina.incrustans+Efficiencies_MTAU37)
+
+stepAIC(M1_AT)
+
+M11_AT <- lm(formula = Ammonium$Transport_15N.enrichment ~ Efficiencies_Lactarius.subdulcis + 
+               Efficiencies_Pezizales.sp..1 + Efficiencies_Xerocomus.pruinatus + 
+               Efficiencies_Russula.mairei + Efficiencies_Lactarius.blennius + 
+               Efficiencies_Tomentella.coerulea + Efficiencies_Xerocomus.cisalpinus + 
+               Efficiencies_Laccaria.amethystina + Efficiencies_Inocybe.maculata + 
+               Efficiencies_Tomentella.bryophila + Efficiencies_Hebeloma.velutipes + 
+               Efficiencies_Pachyphlodes.conglomerata + Efficiencies_Humaria.hemisphaerica + 
+               Efficiencies_Clavulina.cristata + Efficiencies_Byssocorticium.sp. + 
+               Efficiencies_Russula.solaris + Efficiencies_Pseudotomentella.tristis + 
+               Efficiencies_Tricholoma.sulphureum + Efficiencies_Pezizaceae.sp. + 
+               Efficiencies_Ilyonectria.pseudodestructans + Efficiencies_Tomentella.sublilacina + 
+               Efficiencies_Tuber.puberulum + Efficiencies_Tomentella.ramosissima + 
+               Efficiencies_Pachyphlodes.nemoralis + Efficiencies_Tomentella.stuposa + 
+               Efficiencies_Tomentella.lilacinogrisea + Efficiencies_MTSU6 + 
+               Efficiencies_Pachyphlodes.melanoxanthus + Efficiencies_Tomentella.viridula + 
+               Efficiencies_Inocybe.griseolilacina + Efficiencies_Sebacina.flagelliformis + 
+               Efficiencies_Inocybe.splendens + Efficiencies_Pezizales.sp..2 + 
+               Efficiencies_Polyphilus.sieberi + Efficiencies_Paxillus.involutus + 
+               Efficiencies_Russula.cerolens + Efficiencies_Tomentella.punicea + 
+               Efficiencies_Cenococcum.geophilum + Efficiencies_Russula.ochroleuca + 
+               Efficiencies_Tomentella.sp. + Efficiencies_Helotiales.sp..2 + 
+               Efficiencies_Xerocomus.badius + Efficiencies_Inocybe.cf..microspora + 
+               Efficiencies_Sebacina.incrustans, data = Ammonium)
+
+summary(M11_AT)
+
+##whole root 
+M2_AR <-lm(data=Ammonium,Ammonium$Whole.root_N.uptake~
+             Efficiencies_Lactarius.subdulcis+Efficiencies_Pezizales.sp..1+Efficiencies_Xerocomus.pruinatus+
+             Efficiencies_Russula.mairei+Efficiencies_Lactarius.blennius+Efficiencies_Tomentella.coerulea+
+             Efficiencies_Xerocomus.cisalpinus+Efficiencies_Laccaria.amethystina+Efficiencies_Genea.hispidula+
+             Efficiencies_Inocybe.maculata+Efficiencies_Tomentella.bryophila+Efficiencies_Hebeloma.velutipes+
+             Efficiencies_Pachyphlodes.conglomerata+Efficiencies_Humaria.hemisphaerica+ Efficiencies_Clavulina.cristata+
+             Efficiencies_Byssocorticium.sp.+Efficiencies_Russula.solaris+Efficiencies_Pseudotomentella.tristis+
+             Efficiencies_Tricholoma.sulphureum+Efficiencies_Pezizaceae.sp.+Efficiencies_Ilyonectria.pseudodestructans+
+             Efficiencies_Tomentella.sublilacina+Efficiencies_Russula.paludosa+Efficiencies_Tuber.puberulum+
+             Efficiencies_Tomentella.ramosissima+Efficiencies_Inocybe.petiginosa+Efficiencies_Xerocomus.chrysenteron+
+             Efficiencies_Pachyphlodes.nemoralis+Efficiencies_Tomentella.stuposa+Efficiencies_Tomentella.lilacinogrisea+
+             Efficiencies_Helotiales.sp..1+Efficiencies_Uncultured.Thelephoraceae.sp.+Efficiencies_Russula.integriformis+
+             Efficiencies_MTSU6+Efficiencies_Pachyphlodes.melanoxanthus+Efficiencies_Tomentella.viridula+
+             Efficiencies_Inocybe.griseolilacina+Efficiencies_Sebacina.flagelliformis+Efficiencies_Inocybe.splendens+
+             Efficiencies_Pezizales.sp..2+Efficiencies_Polyphilus.sieberi+Efficiencies_Paxillus.involutus+
+             Efficiencies_Russula.cerolens+Efficiencies_Tomentella.punicea+Efficiencies_Cenococcum.geophilum+
+             Efficiencies_Russula.ochroleuca+Efficiencies_Tomentella.sp.+Efficiencies_Cortinarius.casimiri+
+             Efficiencies_Helotiales.sp..2+Efficiencies_Xerocomus.badius+Efficiencies_Inocybe.cf..microspora+
+             Efficiencies_Sebacina.incrustans+Efficiencies_MTAU37)
+
+stepAIC(M2_AR)
+
+M22_AR <- lm(formula = Ammonium$Whole.root_N.uptake ~ Efficiencies_Lactarius.subdulcis + 
+               Efficiencies_Xerocomus.pruinatus + Efficiencies_Russula.mairei + 
+               Efficiencies_Lactarius.blennius + Efficiencies_Tomentella.coerulea + 
+               Efficiencies_Xerocomus.cisalpinus + Efficiencies_Laccaria.amethystina + 
+               Efficiencies_Genea.hispidula + Efficiencies_Inocybe.maculata + 
+               Efficiencies_Hebeloma.velutipes + Efficiencies_Pachyphlodes.conglomerata + 
+               Efficiencies_Humaria.hemisphaerica + Efficiencies_Clavulina.cristata + 
+               Efficiencies_Byssocorticium.sp. + Efficiencies_Russula.solaris + 
+               Efficiencies_Pseudotomentella.tristis + Efficiencies_Tricholoma.sulphureum + 
+               Efficiencies_Pezizaceae.sp. + Efficiencies_Tomentella.sublilacina + 
+               Efficiencies_Russula.paludosa + Efficiencies_Tomentella.ramosissima + 
+               Efficiencies_Inocybe.petiginosa + Efficiencies_Xerocomus.chrysenteron + 
+               Efficiencies_Pachyphlodes.nemoralis + Efficiencies_Tomentella.stuposa + 
+               Efficiencies_Helotiales.sp..1 + Efficiencies_Uncultured.Thelephoraceae.sp. + 
+               Efficiencies_MTSU6 + Efficiencies_Tomentella.viridula + Efficiencies_Inocybe.griseolilacina + 
+               Efficiencies_Sebacina.flagelliformis + Efficiencies_Inocybe.splendens + 
+               Efficiencies_Paxillus.involutus + Efficiencies_Tomentella.punicea + 
+               Efficiencies_Cenococcum.geophilum + Efficiencies_Russula.ochroleuca + 
+               Efficiencies_Tomentella.sp. + Efficiencies_Cortinarius.casimiri + 
+               Efficiencies_Helotiales.sp..2 + Efficiencies_Xerocomus.badius + 
+               Efficiencies_Inocybe.cf..microspora + Efficiencies_Sebacina.incrustans + 
+               Efficiencies_MTAU37, data = Ammonium)
+
+summary(M22_AR)
+
+
+##Model for 15NO3 
+##transport 
+M1_NT <-lm(data=Nitrate,Nitrate$Transport_15N.enrichment~
+             Efficiencies_Lactarius.subdulcis+Efficiencies_Pezizales.sp..1+Efficiencies_Xerocomus.pruinatus+
+             Efficiencies_Russula.mairei+Efficiencies_Lactarius.blennius+Efficiencies_Tomentella.coerulea+
+             Efficiencies_Xerocomus.cisalpinus+Efficiencies_Laccaria.amethystina+Efficiencies_Genea.hispidula+
+             Efficiencies_Inocybe.maculata+Efficiencies_Tomentella.bryophila+Efficiencies_Hebeloma.velutipes+
+             Efficiencies_Pachyphlodes.conglomerata+Efficiencies_Humaria.hemisphaerica+ Efficiencies_Clavulina.cristata+
+             Efficiencies_Byssocorticium.sp.+Efficiencies_Russula.solaris+Efficiencies_Pseudotomentella.tristis+
+             Efficiencies_Tricholoma.sulphureum+Efficiencies_Pezizaceae.sp.+Efficiencies_Ilyonectria.pseudodestructans+
+             Efficiencies_Tomentella.sublilacina+Efficiencies_Russula.paludosa+Efficiencies_Tuber.puberulum+
+             Efficiencies_Tomentella.ramosissima+Efficiencies_Inocybe.petiginosa+Efficiencies_Xerocomus.chrysenteron+
+             Efficiencies_Pachyphlodes.nemoralis+Efficiencies_Tomentella.stuposa+Efficiencies_Tomentella.lilacinogrisea+
+             Efficiencies_Helotiales.sp..1+Efficiencies_Uncultured.Thelephoraceae.sp.+Efficiencies_Russula.integriformis+
+             Efficiencies_MTSU6+Efficiencies_Pachyphlodes.melanoxanthus+Efficiencies_Tomentella.viridula+
+             Efficiencies_Inocybe.griseolilacina+Efficiencies_Sebacina.flagelliformis+Efficiencies_Inocybe.splendens+
+             Efficiencies_Pezizales.sp..2+Efficiencies_Polyphilus.sieberi+Efficiencies_Paxillus.involutus+
+             Efficiencies_Russula.cerolens+Efficiencies_Tomentella.punicea+Efficiencies_Cenococcum.geophilum+
+             Efficiencies_Russula.ochroleuca+Efficiencies_Tomentella.sp.+Efficiencies_Cortinarius.casimiri+
+             Efficiencies_Helotiales.sp..2+Efficiencies_Xerocomus.badius+Efficiencies_Inocybe.cf..microspora+
+             Efficiencies_Sebacina.incrustans+Efficiencies_MTAU37)
+
+stepAIC(M1_NT)
+
+M11_NT <- lm(formula = Nitrate$Transport_15N.enrichment ~ Efficiencies_Lactarius.subdulcis + 
+               Efficiencies_Xerocomus.pruinatus + Efficiencies_Lactarius.blennius + 
+               Efficiencies_Tomentella.coerulea + Efficiencies_Xerocomus.cisalpinus + 
+               Efficiencies_Genea.hispidula + Efficiencies_Inocybe.maculata + 
+               Efficiencies_Tomentella.bryophila + Efficiencies_Clavulina.cristata + 
+               Efficiencies_Byssocorticium.sp. + Efficiencies_Pseudotomentella.tristis + 
+               Efficiencies_Pezizaceae.sp. + Efficiencies_Tomentella.sublilacina + 
+               Efficiencies_Russula.paludosa + Efficiencies_Xerocomus.chrysenteron + 
+               Efficiencies_Tomentella.stuposa + Efficiencies_Tomentella.lilacinogrisea + 
+               Efficiencies_Helotiales.sp..1 + Efficiencies_Uncultured.Thelephoraceae.sp. + 
+               Efficiencies_Russula.integriformis + Efficiencies_MTSU6 + 
+               Efficiencies_Pachyphlodes.melanoxanthus + Efficiencies_Tomentella.viridula + 
+               Efficiencies_Inocybe.griseolilacina + Efficiencies_Sebacina.flagelliformis + 
+               Efficiencies_Inocybe.splendens + Efficiencies_Pezizales.sp..2 + 
+               Efficiencies_Polyphilus.sieberi + Efficiencies_Paxillus.involutus + 
+               Efficiencies_Russula.cerolens + Efficiencies_Tomentella.punicea + 
+               Efficiencies_Cenococcum.geophilum + Efficiencies_Russula.ochroleuca + 
+               Efficiencies_Tomentella.sp. + Efficiencies_Sebacina.incrustans + 
+               Efficiencies_MTAU37, data = Nitrate)
+
+summary(M11_NT)
+
+
+##whole root 
+M2_NR <-lm(data=Nitrate,Nitrate$Whole.root_N.uptake~
+             Efficiencies_Lactarius.subdulcis+Efficiencies_Pezizales.sp..1+Efficiencies_Xerocomus.pruinatus+
+             Efficiencies_Russula.mairei+Efficiencies_Lactarius.blennius+Efficiencies_Tomentella.coerulea+
+             Efficiencies_Xerocomus.cisalpinus+Efficiencies_Laccaria.amethystina+Efficiencies_Genea.hispidula+
+             Efficiencies_Inocybe.maculata+Efficiencies_Tomentella.bryophila+Efficiencies_Hebeloma.velutipes+
+             Efficiencies_Pachyphlodes.conglomerata+Efficiencies_Humaria.hemisphaerica+ Efficiencies_Clavulina.cristata+
+             Efficiencies_Byssocorticium.sp.+Efficiencies_Russula.solaris+Efficiencies_Pseudotomentella.tristis+
+             Efficiencies_Tricholoma.sulphureum+Efficiencies_Pezizaceae.sp.+Efficiencies_Ilyonectria.pseudodestructans+
+             Efficiencies_Tomentella.sublilacina+Efficiencies_Russula.paludosa+Efficiencies_Tuber.puberulum+
+             Efficiencies_Tomentella.ramosissima+Efficiencies_Inocybe.petiginosa+Efficiencies_Xerocomus.chrysenteron+
+             Efficiencies_Pachyphlodes.nemoralis+Efficiencies_Tomentella.stuposa+Efficiencies_Tomentella.lilacinogrisea+
+             Efficiencies_Helotiales.sp..1+Efficiencies_Uncultured.Thelephoraceae.sp.+Efficiencies_Russula.integriformis+
+             Efficiencies_MTSU6+Efficiencies_Pachyphlodes.melanoxanthus+Efficiencies_Tomentella.viridula+
+             Efficiencies_Inocybe.griseolilacina+Efficiencies_Sebacina.flagelliformis+Efficiencies_Inocybe.splendens+
+             Efficiencies_Pezizales.sp..2+Efficiencies_Polyphilus.sieberi+Efficiencies_Paxillus.involutus+
+             Efficiencies_Russula.cerolens+Efficiencies_Tomentella.punicea+Efficiencies_Cenococcum.geophilum+
+             Efficiencies_Russula.ochroleuca+Efficiencies_Tomentella.sp.+Efficiencies_Cortinarius.casimiri+
+             Efficiencies_Helotiales.sp..2+Efficiencies_Xerocomus.badius+Efficiencies_Inocybe.cf..microspora+
+             Efficiencies_Sebacina.incrustans+Efficiencies_MTAU37)
+
+stepAIC(M2_NR)
+
+M22_NR <- lm(formula = Nitrate$Whole.root_N.uptake ~ Efficiencies_Pezizales.sp..1 + 
+               Efficiencies_Xerocomus.pruinatus + Efficiencies_Russula.mairei + 
+               Efficiencies_Lactarius.blennius + Efficiencies_Tomentella.coerulea + 
+               Efficiencies_Xerocomus.cisalpinus + Efficiencies_Laccaria.amethystina + 
+               Efficiencies_Genea.hispidula + Efficiencies_Inocybe.maculata + 
+               Efficiencies_Hebeloma.velutipes + Efficiencies_Pachyphlodes.conglomerata + 
+               Efficiencies_Humaria.hemisphaerica + Efficiencies_Clavulina.cristata + 
+               Efficiencies_Russula.solaris + Efficiencies_Pseudotomentella.tristis + 
+               Efficiencies_Tricholoma.sulphureum + Efficiencies_Pezizaceae.sp. + 
+               Efficiencies_Ilyonectria.pseudodestructans + Efficiencies_Tomentella.sublilacina + 
+               Efficiencies_Russula.paludosa + Efficiencies_Tuber.puberulum + 
+               Efficiencies_Tomentella.ramosissima + Efficiencies_Inocybe.petiginosa + 
+               Efficiencies_Xerocomus.chrysenteron + Efficiencies_Tomentella.stuposa + 
+               Efficiencies_Tomentella.lilacinogrisea + Efficiencies_Helotiales.sp..1 + 
+               Efficiencies_MTSU6 + Efficiencies_Sebacina.flagelliformis + 
+               Efficiencies_Inocybe.splendens + Efficiencies_Pezizales.sp..2 + 
+               Efficiencies_Paxillus.involutus + Efficiencies_Russula.cerolens + 
+               Efficiencies_Tomentella.punicea + Efficiencies_Russula.ochroleuca + 
+               Efficiencies_Helotiales.sp..2 + Efficiencies_Xerocomus.badius + 
+               Efficiencies_Inocybe.cf..microspora + Efficiencies_Sebacina.incrustans, 
+             data = Nitrate)
+
+summary(M22_NR)
+
