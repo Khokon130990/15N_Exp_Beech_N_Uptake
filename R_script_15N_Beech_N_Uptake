@@ -1,3 +1,5 @@
+#### R_script 15N manuscript - "Ectomycorrhizal diversity overtops taxon-specific traits for N uptake in temperate beech forests" ##
+
 setwd("C:/Users/khokon/Desktop/PhD/GitHub_Anis_Khokon")
 rm(list=ls())
 library(ggplot2)
