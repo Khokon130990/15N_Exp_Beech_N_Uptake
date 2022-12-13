@@ -1,5 +1,4 @@
 #### R_script 15N manuscript - "Ectomycorrhizal diversity overtops taxon-specific traits for N uptake in temperate beech forests" ##
-
 setwd("C:/Users/khokon/Desktop/PhD/GitHub_Anis_Khokon")
 rm(list=ls())
 library(ggplot2)
@@ -20,7 +19,8 @@ library(MuMIn)
 library(rsq)
 
 ### Table 2 ####
-##model selection 
+## model selection
+### used BExIS dataset: 31079 and 31080
 
 ##load the data 
 dat<-read.table(file="15N_dataset_review.txt",head=T,sep="\t")
@@ -136,6 +136,7 @@ summary(Best_model_Ammonium_whole_root)
 summary(Best_model_Nitrate_whole_root)
 
 ## Figure 1 : 15N in different root segments ####
+### used BExIS dataset: 31080
 rm(list=ls())
 dat_box<-read.table(file="15N in different root segments.txt",head=T,sep="\t")
 
@@ -193,6 +194,7 @@ all.plot
 dev.off()
 
 ########## Figure 1: Tukey test for the different segments in HEW and SEW ####
+### used BExIS dataset: 31080
 library(lme4)
 library(lmerTest)
 library(multcomp)
@@ -250,6 +252,7 @@ lmer_Transport1 <-lmer(data=Transport,log(X15N.enrichments)~Transport$Treatment+
 anova(lmer_Transport1)
 
 ####Figure 2 : 15N enrichment in EM species ##### 
+### used BExIS dataset: 31082
 #######Library load 
 library(ggplot2)
 library(vegan)
@@ -319,6 +322,7 @@ p1
 dev.off()
 
 ##stats figure 2:  15N in EMF ####
+### used BExIS dataset: 31082
 rm(list=ls())
 df<-read.table(file="15N in EM Fungi speceis.txt",head=T,sep="\t")
 head(df)
@@ -383,6 +387,7 @@ lme2<-lmer(data=Au,log(X15N.enrichment_MT)~Treatment+(1|Plot)+(1|Sites))
 anova(lme2)
 
 ### figure 3: EM diversity and N uptake ####
+### used BExIS dataset: 31079 and 31080
 rm(list=ls())
 dat<-read.table(file="Data to cal effect H and identity.txt",head=T,sep="\t")
 head(dat)
@@ -462,6 +467,7 @@ dev.off()
 cor.test(dat$Shannon_H,dat$Transport.log_15N.enrichment) ##t = 4.6605, df = 120, p-value = 8.238e-06, r =0.3914859 
 
 ### Figure 4: LASSO regression####
+### used BExIS dataset: 31078, 31080 and 31082
 rm(list=ls())
 
 # read in data
@@ -571,7 +577,8 @@ plot(lasso_reg_NR)
 dev.off()
 
 ####Supplement figures and tables ####
-##figure SP2: Relative abundance EM ####
+##Figure SP2a: Relative abundance EM ####
+### used BExIS dataset: 31078
 rm(list=ls())
 RA<-read.table(file="Relative abundance.txt",head=T,sep="\t")
 library(dplyr) 
@@ -618,7 +625,8 @@ tiff(filename="RA of the ECMF species v3.tiff",width=5500,height=3500,res=300)
 p3
 dev.off()
 
-### Figure SP 3: plot correlation between measured and calculated 15N in EMRTS #####
+### Figure SP6: plot correlation between measured and calculated 15N in EMRTS #####
+### used BExIS dataset: 31078, 31080 and 31082
 rm(list=ls())
 dat<-read.table(file="corr_measured_calculated_15N.txt",head=T,sep="\t")
 
@@ -658,7 +666,8 @@ tiff(filename="scatter_cal_measured.tiff",width=1800,height=1400,res=300)
 p_measured_cal
 dev.off()
 
-### SP table 3####
+### SP table S3####
+### used BExIS dataset: 31082
 library(ggplot2)
 library(vegan)
 library(permute)
@@ -788,6 +797,7 @@ anova(AU_15NH4)
 anova(AU_15NO3)
 
 ##sp table 4 :calculate mean and SE #####
+### used BExIS dataset: 31080
 ###Meta different sites 
 rm(list=ls())
 meta_site2<-read.table(file="v2_Meta_Sites.txt",head=T,sep="\t")
@@ -880,7 +890,8 @@ write.csv(means.Transport_CN1,file = "Transport_CN1.csv")
 write.csv(means.Transport_13C1,file = "Transport_13C1.csv")
 write.csv(means.Transport_15N1,file = "Transport_15n1.csv")
 
-####Stats sp table 4 #####
+####Stats sp table S4 #####
+### used BExIS dataset: 31080
 ###
 meta_site2<-read.table(file="v2_Meta_Sites.txt",head=T,sep="\t")
 HEW <-(meta_site2[1:90,])
@@ -1087,6 +1098,7 @@ anova(lm_Transport_AM)
 anova(lm_Transport_Ni)
 
 ### table 1 ####
+### used BExIS dataset: 31079
 ###Meta different season____mycorrhizal calculation 
 rm(list=ls())
 meta_site2<-read.table(file="meta_36samples.txt",head=T,sep="\t")
@@ -1125,6 +1137,7 @@ write.csv(means.EM_colonization1,file = "EM colonization rate1.csv")
 write.csv(means.Vitality1,file = "Vitality index1.csv")
 
 ####Stats : table 1 ####
+### used BExIS dataset: 31079
 HEW <-(meta_site2[1:54,])
 SEW <-(meta_site2[55:108,])
 
@@ -1184,7 +1197,9 @@ glhtlme_eveness<-glht(lme_eveness,linfct=mcp(int="Tukey"))
 summary(glhtlme_eveness)
 cld(glhtlme_eveness)
 
-##### NMDS plot of the EM assemblages in NH4 and NO3 treatment groups#### 
+### Supplement Figure S2b####
+# NMDS plot of the EM assemblages in NH4 and NO3 treatment groups#### 
+### used BExIS dataset: 31078
 library(vegan)
 library(devEMF)
 
@@ -1216,7 +1231,9 @@ ano
 #ANOSIM statistic R = -0.009284 
 # p = 0.841 
 
+##Additional analysis###
 ##calculate Bray Curtis dissimilarity ####
+### used BExIS dataset: 31078 and 31080
 library (vegan)
 
 Amm_abund <- decostand (Ammonium[,62:114], method = 'hellinger')
@@ -1320,7 +1337,9 @@ tiff(filename="Bray_curtis vs 15N_without_log.tiff",width=2200,height=1200,res=3
 all.plot
 dev.off()
 
+### Additional analysis 
 ### cor. EM amm vs nit #### 
+### used BExIS dataset: 31082
 library(viridis)
 library(ggrepel)
 dat<-read.table(file="Scatterd_plot_EM_Amm_Nit.txt",head=T,sep="\t")
@@ -1362,197 +1381,6 @@ tiff(filename="v2scatter_ammonium_nitrate_EM.tiff",width=3500,height=2500,res=30
 EM_treatment
 dev.off()
 
-###linear regression 15N enrichment in root ~ efficiency of EM species ####
-##Model for 15NH4 
-##transport 
-M1_AT <-lm(data=Ammonium,Ammonium$Transport_15N.enrichment~
-             Efficiencies_Lactarius.subdulcis+Efficiencies_Pezizales.sp..1+Efficiencies_Xerocomus.pruinatus+
-             Efficiencies_Russula.mairei+Efficiencies_Lactarius.blennius+Efficiencies_Tomentella.coerulea+
-             Efficiencies_Xerocomus.cisalpinus+Efficiencies_Laccaria.amethystina+Efficiencies_Genea.hispidula+
-             Efficiencies_Inocybe.maculata+Efficiencies_Tomentella.bryophila+Efficiencies_Hebeloma.velutipes+
-             Efficiencies_Pachyphlodes.conglomerata+Efficiencies_Humaria.hemisphaerica+ Efficiencies_Clavulina.cristata+
-             Efficiencies_Byssocorticium.sp.+Efficiencies_Russula.solaris+Efficiencies_Pseudotomentella.tristis+
-             Efficiencies_Tricholoma.sulphureum+Efficiencies_Pezizaceae.sp.+Efficiencies_Ilyonectria.pseudodestructans+
-             Efficiencies_Tomentella.sublilacina+Efficiencies_Russula.paludosa+Efficiencies_Tuber.puberulum+
-             Efficiencies_Tomentella.ramosissima+Efficiencies_Inocybe.petiginosa+Efficiencies_Xerocomus.chrysenteron+
-             Efficiencies_Pachyphlodes.nemoralis+Efficiencies_Tomentella.stuposa+Efficiencies_Tomentella.lilacinogrisea+
-             Efficiencies_Helotiales.sp..1+Efficiencies_Uncultured.Thelephoraceae.sp.+Efficiencies_Russula.integriformis+
-             Efficiencies_MTSU6+Efficiencies_Pachyphlodes.melanoxanthus+Efficiencies_Tomentella.viridula+
-             Efficiencies_Inocybe.griseolilacina+Efficiencies_Sebacina.flagelliformis+Efficiencies_Inocybe.splendens+
-             Efficiencies_Pezizales.sp..2+Efficiencies_Polyphilus.sieberi+Efficiencies_Paxillus.involutus+
-             Efficiencies_Russula.cerolens+Efficiencies_Tomentella.punicea+Efficiencies_Cenococcum.geophilum+
-             Efficiencies_Russula.ochroleuca+Efficiencies_Tomentella.sp.+Efficiencies_Cortinarius.casimiri+
-             Efficiencies_Helotiales.sp..2+Efficiencies_Xerocomus.badius+Efficiencies_Inocybe.cf..microspora+
-             Efficiencies_Sebacina.incrustans+Efficiencies_MTAU37)
 
-stepAIC(M1_AT)
-
-M11_AT <- lm(formula = Ammonium$Transport_15N.enrichment ~ Efficiencies_Lactarius.subdulcis + 
-               Efficiencies_Pezizales.sp..1 + Efficiencies_Xerocomus.pruinatus + 
-               Efficiencies_Russula.mairei + Efficiencies_Lactarius.blennius + 
-               Efficiencies_Tomentella.coerulea + Efficiencies_Xerocomus.cisalpinus + 
-               Efficiencies_Laccaria.amethystina + Efficiencies_Inocybe.maculata + 
-               Efficiencies_Tomentella.bryophila + Efficiencies_Hebeloma.velutipes + 
-               Efficiencies_Pachyphlodes.conglomerata + Efficiencies_Humaria.hemisphaerica + 
-               Efficiencies_Clavulina.cristata + Efficiencies_Byssocorticium.sp. + 
-               Efficiencies_Russula.solaris + Efficiencies_Pseudotomentella.tristis + 
-               Efficiencies_Tricholoma.sulphureum + Efficiencies_Pezizaceae.sp. + 
-               Efficiencies_Ilyonectria.pseudodestructans + Efficiencies_Tomentella.sublilacina + 
-               Efficiencies_Tuber.puberulum + Efficiencies_Tomentella.ramosissima + 
-               Efficiencies_Pachyphlodes.nemoralis + Efficiencies_Tomentella.stuposa + 
-               Efficiencies_Tomentella.lilacinogrisea + Efficiencies_MTSU6 + 
-               Efficiencies_Pachyphlodes.melanoxanthus + Efficiencies_Tomentella.viridula + 
-               Efficiencies_Inocybe.griseolilacina + Efficiencies_Sebacina.flagelliformis + 
-               Efficiencies_Inocybe.splendens + Efficiencies_Pezizales.sp..2 + 
-               Efficiencies_Polyphilus.sieberi + Efficiencies_Paxillus.involutus + 
-               Efficiencies_Russula.cerolens + Efficiencies_Tomentella.punicea + 
-               Efficiencies_Cenococcum.geophilum + Efficiencies_Russula.ochroleuca + 
-               Efficiencies_Tomentella.sp. + Efficiencies_Helotiales.sp..2 + 
-               Efficiencies_Xerocomus.badius + Efficiencies_Inocybe.cf..microspora + 
-               Efficiencies_Sebacina.incrustans, data = Ammonium)
-
-summary(M11_AT)
-
-##whole root 
-M2_AR <-lm(data=Ammonium,Ammonium$Whole.root_N.uptake~
-             Efficiencies_Lactarius.subdulcis+Efficiencies_Pezizales.sp..1+Efficiencies_Xerocomus.pruinatus+
-             Efficiencies_Russula.mairei+Efficiencies_Lactarius.blennius+Efficiencies_Tomentella.coerulea+
-             Efficiencies_Xerocomus.cisalpinus+Efficiencies_Laccaria.amethystina+Efficiencies_Genea.hispidula+
-             Efficiencies_Inocybe.maculata+Efficiencies_Tomentella.bryophila+Efficiencies_Hebeloma.velutipes+
-             Efficiencies_Pachyphlodes.conglomerata+Efficiencies_Humaria.hemisphaerica+ Efficiencies_Clavulina.cristata+
-             Efficiencies_Byssocorticium.sp.+Efficiencies_Russula.solaris+Efficiencies_Pseudotomentella.tristis+
-             Efficiencies_Tricholoma.sulphureum+Efficiencies_Pezizaceae.sp.+Efficiencies_Ilyonectria.pseudodestructans+
-             Efficiencies_Tomentella.sublilacina+Efficiencies_Russula.paludosa+Efficiencies_Tuber.puberulum+
-             Efficiencies_Tomentella.ramosissima+Efficiencies_Inocybe.petiginosa+Efficiencies_Xerocomus.chrysenteron+
-             Efficiencies_Pachyphlodes.nemoralis+Efficiencies_Tomentella.stuposa+Efficiencies_Tomentella.lilacinogrisea+
-             Efficiencies_Helotiales.sp..1+Efficiencies_Uncultured.Thelephoraceae.sp.+Efficiencies_Russula.integriformis+
-             Efficiencies_MTSU6+Efficiencies_Pachyphlodes.melanoxanthus+Efficiencies_Tomentella.viridula+
-             Efficiencies_Inocybe.griseolilacina+Efficiencies_Sebacina.flagelliformis+Efficiencies_Inocybe.splendens+
-             Efficiencies_Pezizales.sp..2+Efficiencies_Polyphilus.sieberi+Efficiencies_Paxillus.involutus+
-             Efficiencies_Russula.cerolens+Efficiencies_Tomentella.punicea+Efficiencies_Cenococcum.geophilum+
-             Efficiencies_Russula.ochroleuca+Efficiencies_Tomentella.sp.+Efficiencies_Cortinarius.casimiri+
-             Efficiencies_Helotiales.sp..2+Efficiencies_Xerocomus.badius+Efficiencies_Inocybe.cf..microspora+
-             Efficiencies_Sebacina.incrustans+Efficiencies_MTAU37)
-
-stepAIC(M2_AR)
-
-M22_AR <- lm(formula = Ammonium$Whole.root_N.uptake ~ Efficiencies_Lactarius.subdulcis + 
-               Efficiencies_Xerocomus.pruinatus + Efficiencies_Russula.mairei + 
-               Efficiencies_Lactarius.blennius + Efficiencies_Tomentella.coerulea + 
-               Efficiencies_Xerocomus.cisalpinus + Efficiencies_Laccaria.amethystina + 
-               Efficiencies_Genea.hispidula + Efficiencies_Inocybe.maculata + 
-               Efficiencies_Hebeloma.velutipes + Efficiencies_Pachyphlodes.conglomerata + 
-               Efficiencies_Humaria.hemisphaerica + Efficiencies_Clavulina.cristata + 
-               Efficiencies_Byssocorticium.sp. + Efficiencies_Russula.solaris + 
-               Efficiencies_Pseudotomentella.tristis + Efficiencies_Tricholoma.sulphureum + 
-               Efficiencies_Pezizaceae.sp. + Efficiencies_Tomentella.sublilacina + 
-               Efficiencies_Russula.paludosa + Efficiencies_Tomentella.ramosissima + 
-               Efficiencies_Inocybe.petiginosa + Efficiencies_Xerocomus.chrysenteron + 
-               Efficiencies_Pachyphlodes.nemoralis + Efficiencies_Tomentella.stuposa + 
-               Efficiencies_Helotiales.sp..1 + Efficiencies_Uncultured.Thelephoraceae.sp. + 
-               Efficiencies_MTSU6 + Efficiencies_Tomentella.viridula + Efficiencies_Inocybe.griseolilacina + 
-               Efficiencies_Sebacina.flagelliformis + Efficiencies_Inocybe.splendens + 
-               Efficiencies_Paxillus.involutus + Efficiencies_Tomentella.punicea + 
-               Efficiencies_Cenococcum.geophilum + Efficiencies_Russula.ochroleuca + 
-               Efficiencies_Tomentella.sp. + Efficiencies_Cortinarius.casimiri + 
-               Efficiencies_Helotiales.sp..2 + Efficiencies_Xerocomus.badius + 
-               Efficiencies_Inocybe.cf..microspora + Efficiencies_Sebacina.incrustans + 
-               Efficiencies_MTAU37, data = Ammonium)
-
-summary(M22_AR)
-
-
-##Model for 15NO3 
-##transport 
-M1_NT <-lm(data=Nitrate,Nitrate$Transport_15N.enrichment~
-             Efficiencies_Lactarius.subdulcis+Efficiencies_Pezizales.sp..1+Efficiencies_Xerocomus.pruinatus+
-             Efficiencies_Russula.mairei+Efficiencies_Lactarius.blennius+Efficiencies_Tomentella.coerulea+
-             Efficiencies_Xerocomus.cisalpinus+Efficiencies_Laccaria.amethystina+Efficiencies_Genea.hispidula+
-             Efficiencies_Inocybe.maculata+Efficiencies_Tomentella.bryophila+Efficiencies_Hebeloma.velutipes+
-             Efficiencies_Pachyphlodes.conglomerata+Efficiencies_Humaria.hemisphaerica+ Efficiencies_Clavulina.cristata+
-             Efficiencies_Byssocorticium.sp.+Efficiencies_Russula.solaris+Efficiencies_Pseudotomentella.tristis+
-             Efficiencies_Tricholoma.sulphureum+Efficiencies_Pezizaceae.sp.+Efficiencies_Ilyonectria.pseudodestructans+
-             Efficiencies_Tomentella.sublilacina+Efficiencies_Russula.paludosa+Efficiencies_Tuber.puberulum+
-             Efficiencies_Tomentella.ramosissima+Efficiencies_Inocybe.petiginosa+Efficiencies_Xerocomus.chrysenteron+
-             Efficiencies_Pachyphlodes.nemoralis+Efficiencies_Tomentella.stuposa+Efficiencies_Tomentella.lilacinogrisea+
-             Efficiencies_Helotiales.sp..1+Efficiencies_Uncultured.Thelephoraceae.sp.+Efficiencies_Russula.integriformis+
-             Efficiencies_MTSU6+Efficiencies_Pachyphlodes.melanoxanthus+Efficiencies_Tomentella.viridula+
-             Efficiencies_Inocybe.griseolilacina+Efficiencies_Sebacina.flagelliformis+Efficiencies_Inocybe.splendens+
-             Efficiencies_Pezizales.sp..2+Efficiencies_Polyphilus.sieberi+Efficiencies_Paxillus.involutus+
-             Efficiencies_Russula.cerolens+Efficiencies_Tomentella.punicea+Efficiencies_Cenococcum.geophilum+
-             Efficiencies_Russula.ochroleuca+Efficiencies_Tomentella.sp.+Efficiencies_Cortinarius.casimiri+
-             Efficiencies_Helotiales.sp..2+Efficiencies_Xerocomus.badius+Efficiencies_Inocybe.cf..microspora+
-             Efficiencies_Sebacina.incrustans+Efficiencies_MTAU37)
-
-stepAIC(M1_NT)
-
-M11_NT <- lm(formula = Nitrate$Transport_15N.enrichment ~ Efficiencies_Lactarius.subdulcis + 
-               Efficiencies_Xerocomus.pruinatus + Efficiencies_Lactarius.blennius + 
-               Efficiencies_Tomentella.coerulea + Efficiencies_Xerocomus.cisalpinus + 
-               Efficiencies_Genea.hispidula + Efficiencies_Inocybe.maculata + 
-               Efficiencies_Tomentella.bryophila + Efficiencies_Clavulina.cristata + 
-               Efficiencies_Byssocorticium.sp. + Efficiencies_Pseudotomentella.tristis + 
-               Efficiencies_Pezizaceae.sp. + Efficiencies_Tomentella.sublilacina + 
-               Efficiencies_Russula.paludosa + Efficiencies_Xerocomus.chrysenteron + 
-               Efficiencies_Tomentella.stuposa + Efficiencies_Tomentella.lilacinogrisea + 
-               Efficiencies_Helotiales.sp..1 + Efficiencies_Uncultured.Thelephoraceae.sp. + 
-               Efficiencies_Russula.integriformis + Efficiencies_MTSU6 + 
-               Efficiencies_Pachyphlodes.melanoxanthus + Efficiencies_Tomentella.viridula + 
-               Efficiencies_Inocybe.griseolilacina + Efficiencies_Sebacina.flagelliformis + 
-               Efficiencies_Inocybe.splendens + Efficiencies_Pezizales.sp..2 + 
-               Efficiencies_Polyphilus.sieberi + Efficiencies_Paxillus.involutus + 
-               Efficiencies_Russula.cerolens + Efficiencies_Tomentella.punicea + 
-               Efficiencies_Cenococcum.geophilum + Efficiencies_Russula.ochroleuca + 
-               Efficiencies_Tomentella.sp. + Efficiencies_Sebacina.incrustans + 
-               Efficiencies_MTAU37, data = Nitrate)
-
-summary(M11_NT)
-
-
-##whole root 
-M2_NR <-lm(data=Nitrate,Nitrate$Whole.root_N.uptake~
-             Efficiencies_Lactarius.subdulcis+Efficiencies_Pezizales.sp..1+Efficiencies_Xerocomus.pruinatus+
-             Efficiencies_Russula.mairei+Efficiencies_Lactarius.blennius+Efficiencies_Tomentella.coerulea+
-             Efficiencies_Xerocomus.cisalpinus+Efficiencies_Laccaria.amethystina+Efficiencies_Genea.hispidula+
-             Efficiencies_Inocybe.maculata+Efficiencies_Tomentella.bryophila+Efficiencies_Hebeloma.velutipes+
-             Efficiencies_Pachyphlodes.conglomerata+Efficiencies_Humaria.hemisphaerica+ Efficiencies_Clavulina.cristata+
-             Efficiencies_Byssocorticium.sp.+Efficiencies_Russula.solaris+Efficiencies_Pseudotomentella.tristis+
-             Efficiencies_Tricholoma.sulphureum+Efficiencies_Pezizaceae.sp.+Efficiencies_Ilyonectria.pseudodestructans+
-             Efficiencies_Tomentella.sublilacina+Efficiencies_Russula.paludosa+Efficiencies_Tuber.puberulum+
-             Efficiencies_Tomentella.ramosissima+Efficiencies_Inocybe.petiginosa+Efficiencies_Xerocomus.chrysenteron+
-             Efficiencies_Pachyphlodes.nemoralis+Efficiencies_Tomentella.stuposa+Efficiencies_Tomentella.lilacinogrisea+
-             Efficiencies_Helotiales.sp..1+Efficiencies_Uncultured.Thelephoraceae.sp.+Efficiencies_Russula.integriformis+
-             Efficiencies_MTSU6+Efficiencies_Pachyphlodes.melanoxanthus+Efficiencies_Tomentella.viridula+
-             Efficiencies_Inocybe.griseolilacina+Efficiencies_Sebacina.flagelliformis+Efficiencies_Inocybe.splendens+
-             Efficiencies_Pezizales.sp..2+Efficiencies_Polyphilus.sieberi+Efficiencies_Paxillus.involutus+
-             Efficiencies_Russula.cerolens+Efficiencies_Tomentella.punicea+Efficiencies_Cenococcum.geophilum+
-             Efficiencies_Russula.ochroleuca+Efficiencies_Tomentella.sp.+Efficiencies_Cortinarius.casimiri+
-             Efficiencies_Helotiales.sp..2+Efficiencies_Xerocomus.badius+Efficiencies_Inocybe.cf..microspora+
-             Efficiencies_Sebacina.incrustans+Efficiencies_MTAU37)
-
-stepAIC(M2_NR)
-
-M22_NR <- lm(formula = Nitrate$Whole.root_N.uptake ~ Efficiencies_Pezizales.sp..1 + 
-               Efficiencies_Xerocomus.pruinatus + Efficiencies_Russula.mairei + 
-               Efficiencies_Lactarius.blennius + Efficiencies_Tomentella.coerulea + 
-               Efficiencies_Xerocomus.cisalpinus + Efficiencies_Laccaria.amethystina + 
-               Efficiencies_Genea.hispidula + Efficiencies_Inocybe.maculata + 
-               Efficiencies_Hebeloma.velutipes + Efficiencies_Pachyphlodes.conglomerata + 
-               Efficiencies_Humaria.hemisphaerica + Efficiencies_Clavulina.cristata + 
-               Efficiencies_Russula.solaris + Efficiencies_Pseudotomentella.tristis + 
-               Efficiencies_Tricholoma.sulphureum + Efficiencies_Pezizaceae.sp. + 
-               Efficiencies_Ilyonectria.pseudodestructans + Efficiencies_Tomentella.sublilacina + 
-               Efficiencies_Russula.paludosa + Efficiencies_Tuber.puberulum + 
-               Efficiencies_Tomentella.ramosissima + Efficiencies_Inocybe.petiginosa + 
-               Efficiencies_Xerocomus.chrysenteron + Efficiencies_Tomentella.stuposa + 
-               Efficiencies_Tomentella.lilacinogrisea + Efficiencies_Helotiales.sp..1 + 
-               Efficiencies_MTSU6 + Efficiencies_Sebacina.flagelliformis + 
-               Efficiencies_Inocybe.splendens + Efficiencies_Pezizales.sp..2 + 
-               Efficiencies_Paxillus.involutus + Efficiencies_Russula.cerolens + 
-               Efficiencies_Tomentella.punicea + Efficiencies_Russula.ochroleuca + 
-               Efficiencies_Helotiales.sp..2 + Efficiencies_Xerocomus.badius + 
-               Efficiencies_Inocybe.cf..microspora + Efficiencies_Sebacina.incrustans, 
-             data = Nitrate)
-
-summary(M22_NR)
+#### the End #### 
 
