@@ -1,10 +1,13 @@
-#### R_script 15N manuscript - "Ectomycorrhizal diversity overtops taxon-specific traits for N uptake in temperate beech forests" ##
+#### R_script_15N_Manuscript - "Ectomycorrhizal diversity overtops taxon-specific traits for N uptake in temperate beech forests"
 # Anis Mahmud Khokon1,2, Dennis Janz1 and Andrea Polle1* 
 # 1Forest Botany and Tree Physiology, University of Göttingen, Göttingen, Germany
 # 2Functional Forest Ecology, Universität Hamburg, Barsbüttel 22885, Germany
 
+## setting up the working directory
 setwd("C:/Users/khokon/Desktop/PhD/GitHub_Anis_Khokon")
 rm(list=ls())
+
+## load packages 
 library(ggplot2)
 library(gridExtra)
 library(car)
@@ -197,7 +200,7 @@ tiff(filename="v3_Repeated for paper_15N in different root segments v3.tiff",wid
 all.plot
 dev.off()
 
-########## Figure 1: Tukey test for the different segments in HEW and SEW ####
+## Figure 1: Tukey test for the different segments in HEW and SEW ####
 ### used BExIS dataset: 31080
 library(lme4)
 library(lmerTest)
@@ -233,7 +236,7 @@ glhtlm2 <-glht(lm2,linfct=mcp(int2="Tukey"))
 summary(glhtlm2)
 cld(glhtlm2)
 
-###compare NH4 and NO3 in different segments ####
+### compare NH4 and NO3 in different segments ####
 EMRT <-df[df$segments=="EMRT ",]
 Fine <-df[df$segments=="Fine",]
 Coarse <-df[df$segments=="Coarse ",]
@@ -255,9 +258,9 @@ anova(lmer_Coarse1)
 lmer_Transport1 <-lmer(data=Transport,log(X15N.enrichments)~Transport$Treatment+(1|Plot)+(1|Harvest.season))
 anova(lmer_Transport1)
 
-####Figure 2 : 15N enrichment in EM species ##### 
+#### Figure 2 : 15N enrichment in EMF species ##### 
 ### used BExIS dataset: 31082
-#######Library load 
+###Library load 
 library(ggplot2)
 library(vegan)
 library(permute)
@@ -390,7 +393,7 @@ anova(lme6)
 lme2<-lmer(data=Au,log(X15N.enrichment_MT)~Treatment+(1|Plot)+(1|Sites))
 anova(lme2)
 
-### figure 3: EM diversity and N uptake ####
+### Figure 3: EM diversity and N uptake ####
 ### used BExIS dataset: 31079 and 31080
 rm(list=ls())
 dat<-read.table(file="Data to cal effect H and identity.txt",head=T,sep="\t")
@@ -894,7 +897,7 @@ write.csv(means.Transport_CN1,file = "Transport_CN1.csv")
 write.csv(means.Transport_13C1,file = "Transport_13C1.csv")
 write.csv(means.Transport_15N1,file = "Transport_15n1.csv")
 
-####Stats Supplement table S4 #####
+#### Stats Supplement table S4 #####
 ### used BExIS dataset: 31080
 ###
 meta_site2<-read.table(file="v2_Meta_Sites.txt",head=T,sep="\t")
@@ -1342,7 +1345,7 @@ all.plot
 dev.off()
 
 ### Additional analysis 
-### correlation EMF ammonium vs nitrate #### 
+### correlation EMF_ammonium vs nitrate enrichment#### 
 ### used BExIS dataset: 31082
 library(viridis)
 library(ggrepel)
