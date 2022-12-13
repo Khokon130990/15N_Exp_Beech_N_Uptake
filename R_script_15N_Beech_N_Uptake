@@ -1,4 +1,8 @@
 #### R_script 15N manuscript - "Ectomycorrhizal diversity overtops taxon-specific traits for N uptake in temperate beech forests" ##
+# Anis Mahmud Khokon1,2, Dennis Janz1 and Andrea Polle1* 
+# 1Forest Botany and Tree Physiology, University of Göttingen, Göttingen, Germany
+# 2Functional Forest Ecology, Universität Hamburg, Barsbüttel 22885, Germany
+
 setwd("C:/Users/khokon/Desktop/PhD/GitHub_Anis_Khokon")
 rm(list=ls())
 library(ggplot2)
@@ -321,7 +325,7 @@ tiff(filename="repeat_stack 15N enrichment in ECMF Species with SEM.tiff",width=
 p1 
 dev.off()
 
-##stats figure 2:  15N in EMF ####
+##stats Figure 2:  15N in EMF ####
 ### used BExIS dataset: 31082
 rm(list=ls())
 df<-read.table(file="15N in EM Fungi speceis.txt",head=T,sep="\t")
@@ -352,7 +356,7 @@ anova(lme2)
 lmer1<-lmer(data=Sp,log(Sp$X15N.enrichment_MT)~Sp$Treatment+(1|Plot)+(1|Sites))
 anova(lmer1)
 
-#############EM fungi in Summer
+####EM fungi in Summer
 Su<-df[198:309,] 
 Su_amm<-df[198:254,] 
 Su_nit<-df[255:309,]
@@ -369,7 +373,7 @@ anova(lme4)
 lmer11<-lmer(data=Su,log(X15N.enrichment_MT)~Treatment+(1|Plot)+(1|Sites))
 anova(lmer11)
 
-#############EM fungi in autumn
+####EM fungi in autumn
 Au_amm<-df[310:413,] 
 Au_nit<-df[414:488,]
 Au<-df[310:488,] 
@@ -466,7 +470,7 @@ dev.off()
 # Figure 3. correlation statistics #
 cor.test(dat$Shannon_H,dat$Transport.log_15N.enrichment) ##t = 4.6605, df = 120, p-value = 8.238e-06, r =0.3914859 
 
-### Figure 4: LASSO regression####
+### Figure 4: LASSO regression ####
 ### used BExIS dataset: 31078, 31080 and 31082
 rm(list=ls())
 
@@ -576,8 +580,8 @@ plot(lasso_reg_NT)
 plot(lasso_reg_NR)
 dev.off()
 
-####Supplement figures and tables ####
-##Figure SP2a: Relative abundance EM ####
+#### Supplement figures and tables ####
+## Supplement Figure S2a: Relative abundance EMF ####
 ### used BExIS dataset: 31078
 rm(list=ls())
 RA<-read.table(file="Relative abundance.txt",head=T,sep="\t")
@@ -625,7 +629,7 @@ tiff(filename="RA of the ECMF species v3.tiff",width=5500,height=3500,res=300)
 p3
 dev.off()
 
-### Figure SP6: plot correlation between measured and calculated 15N in EMRTS #####
+### Supplement Figure S6: plot correlation between measured and calculated 15N in EMRTS #####
 ### used BExIS dataset: 31078, 31080 and 31082
 rm(list=ls())
 dat<-read.table(file="corr_measured_calculated_15N.txt",head=T,sep="\t")
@@ -666,7 +670,7 @@ tiff(filename="scatter_cal_measured.tiff",width=1800,height=1400,res=300)
 p_measured_cal
 dev.off()
 
-### SP table S3####
+### Supplement table S3 ####
 ### used BExIS dataset: 31082
 library(ggplot2)
 library(vegan)
@@ -680,7 +684,7 @@ library(reshape)
 library(reshape2)
 library(plyr)
 
-###Data read 
+### Data read 
 rm(list=ls())
 meta_EMF<-read.table(file="Env variables in ECMF Speceis.txt",head=T,sep="\t")
 
@@ -796,9 +800,9 @@ AU_15NO3 <-lmer(data=AU_NO3,AU_NO3$Atom_15N_EMF~AU_NO3$Species+(1|Plot))
 anova(AU_15NH4)
 anova(AU_15NO3)
 
-##sp table 4 :calculate mean and SE #####
+## Supplement table S4 :calculate mean and SE #####
 ### used BExIS dataset: 31080
-###Meta different sites 
+### Meta different sites 
 rm(list=ls())
 meta_site2<-read.table(file="v2_Meta_Sites.txt",head=T,sep="\t")
 All_summary <- summarySE(meta_site2, measurevar="X15N.enrichment_EMRT", groupvars=c("Harvest.season","Sites"))
@@ -890,7 +894,7 @@ write.csv(means.Transport_CN1,file = "Transport_CN1.csv")
 write.csv(means.Transport_13C1,file = "Transport_13C1.csv")
 write.csv(means.Transport_15N1,file = "Transport_15n1.csv")
 
-####Stats sp table S4 #####
+####Stats Supplement table S4 #####
 ### used BExIS dataset: 31080
 ###
 meta_site2<-read.table(file="v2_Meta_Sites.txt",head=T,sep="\t")
@@ -1097,7 +1101,7 @@ anova(lme_Transport_13C)
 anova(lm_Transport_AM)
 anova(lm_Transport_Ni)
 
-### table 1 ####
+### Table 1 ####
 ### used BExIS dataset: 31079
 ###Meta different season____mycorrhizal calculation 
 rm(list=ls())
@@ -1136,7 +1140,7 @@ write.csv(means.Evenness1,file = "Eveness1.csv")
 write.csv(means.EM_colonization1,file = "EM colonization rate1.csv")
 write.csv(means.Vitality1,file = "Vitality index1.csv")
 
-####Stats : table 1 ####
+####Stats : Table 1 ####
 ### used BExIS dataset: 31079
 HEW <-(meta_site2[1:54,])
 SEW <-(meta_site2[55:108,])
@@ -1197,7 +1201,7 @@ glhtlme_eveness<-glht(lme_eveness,linfct=mcp(int="Tukey"))
 summary(glhtlme_eveness)
 cld(glhtlme_eveness)
 
-### Supplement Figure S2b####
+### Supplement Figure S2b ####
 # NMDS plot of the EM assemblages in NH4 and NO3 treatment groups#### 
 ### used BExIS dataset: 31078
 library(vegan)
@@ -1231,7 +1235,7 @@ ano
 #ANOSIM statistic R = -0.009284 
 # p = 0.841 
 
-##Additional analysis###
+##Additional analysis ####
 ##calculate Bray Curtis dissimilarity ####
 ### used BExIS dataset: 31078 and 31080
 library (vegan)
@@ -1338,7 +1342,7 @@ all.plot
 dev.off()
 
 ### Additional analysis 
-### cor. EM amm vs nit #### 
+### correlation EMF ammonium vs nitrate #### 
 ### used BExIS dataset: 31082
 library(viridis)
 library(ggrepel)
