@@ -1252,6 +1252,15 @@ anova(lm_Transport_Ni)
 ##calculate Bray Curtis dissimilarity ####
 ### used BExIS dataset: 31078 and 31080
 library (vegan)
+##load data
+dat<-read.table(file="15N_dataset_review.txt",head=T,sep="\t",fileEncoding = "Latin1")
+
+##EM community data 
+data_comm <-dat[,62:114] # subset: only the fungi count data
+
+#Treatment groups: 15NH4, 15NO3 
+Ammonium <-dat[dat$Treatment=="15NH4",]
+Nitrate <-dat[dat$Treatment=="15NO3",]
 
 Amm_abund <- decostand (Ammonium[,62:114], method = 'hellinger')
 Nit_abund <- decostand (Nitrate[,62:114], method = 'hellinger')
